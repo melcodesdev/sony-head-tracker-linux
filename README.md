@@ -8,7 +8,7 @@ a real-time head tracker on Windows.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg)](#build)
 [![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](#build)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?style=for-the-badge)](buymeacoffee.com/nicholasslattery)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?style=for-the-badge)](https://buymeacoffee.com/nicholasslattery)
 > **Unofficial** open-source Windows bridge. Not affiliated with or endorsed by
 > Sony.
 
