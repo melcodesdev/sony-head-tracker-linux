@@ -8,7 +8,7 @@ a real-time head tracker on Windows.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg)](#build)
 [![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](#build)
-
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?style=for-the-badge)](buymeacoffee.com/nicholasslattery)
 > **Unofficial** open-source Windows bridge. Not affiliated with or endorsed by
 > Sony.
 
@@ -400,6 +400,23 @@ physical ranges and HID unit exponent.
 
 UDP output is loopback-only by default and has **no authentication**. Do not bind
 or forward it to an untrusted network.
+
+## Support development
+
+Sony Head Tracker is free and open source.
+
+If this project saved you from buying a TrackIR, Tobii, webcam tracker, phone-tracking app, or other head-tracking hardware, consider supporting development:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?style=for-the-badge)](https://buymeacoffee.com/nicholasslattery)
+
+Support helps fund:
+
+- testing more Sony headphones and earbuds
+- OpenTrack setup improvements
+- compatibility fixes for more devices
+- continued free and open-source development
+
+There is no paid version required. Donations are optional and help keep the project easier to install, test, and maintain.
 
 ## Contributing
 
