@@ -118,6 +118,7 @@ below will be updated.
 | Device | Reported by |
 | ------ | ----------- |
 | Sony WH-1000XM5 | maintainer, tested |
+| Sony WF-1000XM5 | community confirmed |
 | Sony WH-1000XM6 | community confirmed |
 | Sony WF-1000XM6 | community confirmed |
 | Sony ULT WEAR (WH-ULT900N) | community confirmed |
@@ -128,7 +129,6 @@ Sony lists these models as supporting head tracking, but they still require
 community testing with this Windows implementation. Please do not assume they are
 already validated.
 
-- Sony WF-1000XM5
 - Sony LinkBuds Open (WF-L910)
 - Sony LinkBuds Fit (WF-LS910N)
 - Sony LinkBuds (WF-L900)
