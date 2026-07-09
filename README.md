@@ -50,7 +50,6 @@ and the same bridge now works across the wider Sony range.
 - [Techspot — A free app lets Sony headphones do head tracking for racing and flight sims](https://www.techspot.com/news/113019-free-app-sony-headphones-do-head-tracking-racing.html)
 - [SoundGuys — This free app turns Sony WH-1000XM5 into head trackers for PC gaming](https://www.soundguys.com/sony-headphones-windows-head-tracking-159435/)
 
-https://youtu.be/ITmMIqiJwOg?si=M28zLj3hcO0RshHZ&t=405
 
 ## Quick start
 
