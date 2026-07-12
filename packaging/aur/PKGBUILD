@@ -1,0 +1,46 @@
+# Maintainer: melcodesdev
+#
+# AUR package for the Linux build of Sony Head Tracker (CLI + GTK app).
+#
+# This VCS package builds from the Linux branch of the fork while Linux support
+# is in review. Once it is merged upstream, point `source` at
+# https://github.com/NicholasSlattery/sony-head-tracker (a tag or `#branch=main`).
+pkgname=sony-head-tracker-git
+pkgver=r1
+pkgrel=1
+pkgdesc="Use Sony headphones as a head tracker for OpenTrack (Linux CLI + GTK app)"
+arch=('x86_64')
+url="https://github.com/melcodesdev/sony-head-tracker-linux"
+license=('MIT')
+depends=('gtk4' 'libadwaita' 'python-gobject' 'python' 'hicolor-icon-theme')
+makedepends=('git' 'gcc' 'make')
+optdepends=('opentrack: drive the in-game camera from the head-tracking data'
+            'bluez-utils: pair the headset from the terminal with bluetoothctl'
+            'p7zip: OpenTrack setup for Steam/Proton games'
+            'curl: download OpenTrack for Steam/Proton setup')
+provides=('sony-head-tracker')
+conflicts=('sony-head-tracker')
+source=("$pkgname::git+https://github.com/melcodesdev/sony-head-tracker-linux.git#branch=linux-support")
+sha256sums=('SKIP')
+install="$pkgname.install"
+
+pkgver() {
+    cd "$pkgname"
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$pkgname"
+    make
+}
+
+check() {
+    cd "$pkgname"
+    make test
+}
+
+package() {
+    cd "$pkgname"
+    make install DESTDIR="$pkgdir" PREFIX=/usr
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

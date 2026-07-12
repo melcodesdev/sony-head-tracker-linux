@@ -1,0 +1,20 @@
+post_install() {
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger 2>/dev/null || true
+    cat <<'EOF'
+:: Sony Head Tracker installed.
+::   1. Pair your Sony headset over Bluetooth and connect it to this computer.
+::   2. Reconnect it once so the new udev rule grants access without root.
+::   3. Launch "Sony Head Tracker" from your menu, or run: sony-head-tracker probe
+:: Install OpenTrack (optdepend) to drive the in-game camera.
+EOF
+}
+
+post_upgrade() {
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger 2>/dev/null || true
+}
+
+post_remove() {
+    udevadm control --reload-rules 2>/dev/null || true
+}

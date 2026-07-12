@@ -32,6 +32,20 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 CONFIG_PATH = Path(GLib.get_user_config_dir()) / "sony-head-tracker" / "gui.json"
 
+
+def _data_dir() -> Path:
+    """Directory holding scripts/ and extras/. When installed system-wide the GUI
+    script sits at the data root (e.g. /usr/share/sony-head-tracker/) with those
+    beside it; in a repo checkout gui/ is one level below that root."""
+    if (SCRIPT_DIR / "scripts").is_dir():
+        return SCRIPT_DIR
+    return REPO_ROOT
+
+
+DATA_DIR = _data_dir()
+SCRIPTS_DIR = DATA_DIR / "scripts"
+EXTRAS_DIR = DATA_DIR / "extras"
+
 KEYS = ("yaw", "pitch", "roll")
 
 DEFAULTS = {
@@ -730,7 +744,7 @@ class TrackerWindow(Adw.ApplicationWindow):
 
     # ---- Helpers -----------------------------------------------------------
     def grant_access(self):
-        rule = REPO_ROOT / "extras" / "70-sony-head-tracker.rules"
+        rule = EXTRAS_DIR / "70-sony-head-tracker.rules"
         if not rule.is_file():
             self._toast("udev rule not found in extras/")
             return
@@ -788,7 +802,7 @@ class TrackerWindow(Adw.ApplicationWindow):
             self.install_opentrack()
 
     def install_opentrack(self):
-        script = REPO_ROOT / "scripts" / "install-opentrack.sh"
+        script = SCRIPTS_DIR / "install-opentrack.sh"
         if not script.is_file():
             self._toast("Install OpenTrack from your package manager.")
             return
@@ -862,7 +876,7 @@ class TrackerWindow(Adw.ApplicationWindow):
             title="Recenter shortcut",
             description=self._shortcut_explain() or
             "A key that recenters the view from inside any game.")
-        cmd = str(REPO_ROOT / "scripts" / "recenter.sh")
+        cmd = str(SCRIPTS_DIR / "recenter.sh")
         if mode in ("auto", "assist"):
             enabled, key = self._shortcut_status()
             default_key = key if (enabled and key and key != "configured") else "F9"
@@ -988,7 +1002,7 @@ class TrackerWindow(Adw.ApplicationWindow):
 
     # ---- Global recenter shortcut (desktop-aware) --------------------------
     def _shortcut_script(self):
-        return str(REPO_ROOT / "scripts" / "setup-recenter-shortcut.sh")
+        return str(SCRIPTS_DIR / "setup-recenter-shortcut.sh")
 
     def _shortcut_detect(self):
         """Return (desktop_id, mode) where mode is auto|assist|manual."""
@@ -1294,7 +1308,7 @@ class SetupGameDialog(Adw.Window):
         box.append(spinner); box.append(lbl)
         self.toolbar.set_content(box)
 
-        script = str(REPO_ROOT / "scripts" / "setup-steam-game.sh")
+        script = str(SCRIPTS_DIR / "setup-steam-game.sh")
 
         def worker():
             try:

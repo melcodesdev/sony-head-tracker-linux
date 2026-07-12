@@ -11,12 +11,21 @@
 #   make clean
 
 CXX      ?= g++
-CXXFLAGS ?= -std=c++20 -O2 -Wall -Wextra -Iinclude
-LDFLAGS  ?= -pthread
+# Respect a packager's optimization flags (makepkg/dpkg-buildflags export CXXFLAGS),
+# but always append the flags the build cannot go without via `override`.
+CXXFLAGS ?= -O2 -Wall -Wextra
+override CXXFLAGS += -std=c++20 -Iinclude
+override LDFLAGS  += -pthread
 BUILD    := build
 BIN      := $(BUILD)/sony-head-tracker
 GUI_SCRIPT := $(CURDIR)/gui/sony_head_tracker_gui.py
-PREFIX   ?= $(HOME)/.local
+# PREFIX/DESTDIR are for the packaging `install` target (default /usr; AUR and
+# distro packages use DESTDIR staging). The dev `install-gui` target always uses
+# ~/.local and runs the app straight from this checkout.
+PREFIX   ?= /usr
+DESTDIR  ?=
+LOCAL    := $(HOME)/.local
+DATADIR  := $(DESTDIR)$(PREFIX)/share/sony-head-tracker
 
 # Portable core (matches the sony_head_tracker_core CMake library).
 CORE := \
@@ -55,16 +64,48 @@ test: $(TEST_BIN)
 gui: $(BIN)
 	python3 $(GUI_SCRIPT)
 
+# Dev convenience: add the app to your menu, running straight from this checkout
+# (launchers point back here). No root, no udev rule. Use `install` for a real
+# system install.
 install-gui:
-	@mkdir -p $(PREFIX)/bin $(PREFIX)/share/applications $(PREFIX)/share/icons/hicolor/scalable/apps
-	@printf '#!/usr/bin/env bash\nexec python3 "%s" "$$@"\n' '$(GUI_SCRIPT)' > $(PREFIX)/bin/sony-head-tracker-gui
-	@chmod +x $(PREFIX)/bin/sony-head-tracker-gui
-	@printf '#!/usr/bin/env bash\nexec "%s" "$$@"\n' '$(CURDIR)/scripts/recenter.sh' > $(PREFIX)/bin/sony-head-tracker-recenter
-	@chmod +x $(PREFIX)/bin/sony-head-tracker-recenter
-	@cp gui/io.github.sonyheadtracker.desktop $(PREFIX)/share/applications/
-	@cp gui/io.github.sonyheadtracker.svg $(PREFIX)/share/icons/hicolor/scalable/apps/
-	@command -v update-desktop-database >/dev/null && update-desktop-database $(PREFIX)/share/applications || true
-	@echo "Installed 'Sony Head Tracker' to your app menu."
+	@mkdir -p $(LOCAL)/bin $(LOCAL)/share/applications $(LOCAL)/share/icons/hicolor/scalable/apps
+	@printf '#!/usr/bin/env bash\nexec python3 "%s" "$$@"\n' '$(GUI_SCRIPT)' > $(LOCAL)/bin/sony-head-tracker-gui
+	@chmod +x $(LOCAL)/bin/sony-head-tracker-gui
+	@printf '#!/usr/bin/env bash\nexec "%s" "$$@"\n' '$(CURDIR)/scripts/recenter.sh' > $(LOCAL)/bin/sony-head-tracker-recenter
+	@chmod +x $(LOCAL)/bin/sony-head-tracker-recenter
+	@cp gui/io.github.sonyheadtracker.desktop $(LOCAL)/share/applications/
+	@cp gui/io.github.sonyheadtracker.svg $(LOCAL)/share/icons/hicolor/scalable/apps/
+	@command -v update-desktop-database >/dev/null && update-desktop-database $(LOCAL)/share/applications || true
+	@echo "Installed 'Sony Head Tracker' to your app menu (runs from this checkout)."
+
+# Self-contained system install for packagers and manual installs:
+#   sudo make install            # to /usr
+#   make install DESTDIR=pkg PREFIX=/usr   # staged (AUR, .deb, .rpm)
+install: $(BIN)
+	install -Dm755 $(BIN) $(DESTDIR)$(PREFIX)/bin/sony-head-tracker
+	install -Dm644 gui/sony_head_tracker_gui.py $(DATADIR)/sony_head_tracker_gui.py
+	install -Dm755 scripts/recenter.sh $(DATADIR)/scripts/recenter.sh
+	install -Dm755 scripts/setup-recenter-shortcut.sh $(DATADIR)/scripts/setup-recenter-shortcut.sh
+	install -Dm755 scripts/setup-steam-game.sh $(DATADIR)/scripts/setup-steam-game.sh
+	install -Dm755 scripts/install-opentrack.sh $(DATADIR)/scripts/install-opentrack.sh
+	install -Dm644 extras/70-sony-head-tracker.rules $(DATADIR)/extras/70-sony-head-tracker.rules
+	install -Dm644 extras/70-sony-head-tracker.rules $(DESTDIR)$(PREFIX)/lib/udev/rules.d/70-sony-head-tracker.rules
+	install -Dm644 gui/io.github.sonyheadtracker.desktop $(DESTDIR)$(PREFIX)/share/applications/io.github.sonyheadtracker.desktop
+	install -Dm644 gui/io.github.sonyheadtracker.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.sonyheadtracker.svg
+	printf '#!/bin/sh\nexec python3 "%s/share/sony-head-tracker/sony_head_tracker_gui.py" "$$@"\n' '$(PREFIX)' \
+		| install -Dm755 /dev/stdin $(DESTDIR)$(PREFIX)/bin/sony-head-tracker-gui
+	printf '#!/bin/sh\nexec "%s/share/sony-head-tracker/scripts/recenter.sh" "$$@"\n' '$(PREFIX)' \
+		| install -Dm755 /dev/stdin $(DESTDIR)$(PREFIX)/bin/sony-head-tracker-recenter
+	@echo "Installed to $(DESTDIR)$(PREFIX)."
+
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/sony-head-tracker \
+	      $(DESTDIR)$(PREFIX)/bin/sony-head-tracker-gui \
+	      $(DESTDIR)$(PREFIX)/bin/sony-head-tracker-recenter \
+	      $(DESTDIR)$(PREFIX)/lib/udev/rules.d/70-sony-head-tracker.rules \
+	      $(DESTDIR)$(PREFIX)/share/applications/io.github.sonyheadtracker.desktop \
+	      $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.sonyheadtracker.svg
+	rm -rf $(DATADIR)
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -72,4 +113,4 @@ $(BUILD):
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all test gui install-gui clean
+.PHONY: all test gui install-gui install uninstall clean
