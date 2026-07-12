@@ -14,6 +14,7 @@ through Proton. For how the pipeline works internally, see
 
 ## Contents
 
+- [Installing](#installing)
 - [Install the runtime](#install-the-runtime)
 - [Quick start (desktop app)](#quick-start-desktop-app)
 - [Quick start (command line)](#quick-start-command-line)
@@ -23,6 +24,27 @@ through Proton. For how the pipeline works internally, see
 - [OpenTrack](#opentrack)
 - [Games through Proton](#games-through-proton)
 - [Troubleshooting](#troubleshooting)
+
+## Installing
+
+Pick whichever fits your setup:
+
+- **Arch / CachyOS / Manjaro (AUR):** the [`packaging/aur/`](../packaging/aur/)
+  PKGBUILD. `makepkg -si` from that directory builds and installs everything (CLI,
+  GUI, udev rule, desktop entry). Once it is on the AUR you can use an AUR helper,
+  e.g. `paru -S sony-head-tracker-git`.
+- **Any distro (system install):** install the runtime packages below, then
+  `make && sudo make install PREFIX=/usr`. This installs the CLI, the GUI launcher,
+  the scripts, the udev rule, and the desktop entry system-wide. Remove with
+  `sudo make uninstall PREFIX=/usr`.
+- **AppImage (single file, any distro):** experimental, see
+  [`packaging/appimage/`](../packaging/appimage/). Not sandboxed, so game setup and
+  the recenter shortcut keep working.
+- **From source (no install):** `make` then `make gui`, running straight from the
+  checkout. Best for hacking on it.
+
+The rest of this guide assumes a from-source checkout; installed users can drop the
+`./build/` prefix (the CLI is on `PATH` as `sony-head-tracker`).
 
 ## Install the runtime
 
