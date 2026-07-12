@@ -11,7 +11,7 @@ ports. With `--port N` (default `4242`):
 Output is loopback-only and **unauthenticated**. Do not forward it to an
 untrusted network.
 
-## Port `N` — OpenTrack doubles
+## Port `N`: OpenTrack doubles
 
 Exactly 48 bytes: six IEEE-754 little-endian `double`s, in OpenTrack pose order:
 
@@ -19,13 +19,13 @@ Exactly 48 bytes: six IEEE-754 little-endian `double`s, in OpenTrack pose order:
 x, y, z, yaw, pitch, roll
 ```
 
-The translation axes `x, y, z` are always `0.0` — the Android Head Tracker
-protocol reports orientation only — so the head angles occupy the last three
+The translation axes `x, y, z` are always `0.0` (the Android Head Tracker
+protocol reports orientation only), so the head angles occupy the last three
 slots. `yaw`, `pitch`, and `roll` are in **degrees**. This is the exact layout
 OpenTrack's "UDP over network" input reads into its pose array
 (`[TX, TY, TZ, Yaw, Pitch, Roll]`).
 
-## Port `N + 1` — JSON telemetry
+## Port `N + 1`: JSON telemetry
 
 One UTF-8 JSON object per sample, no trailing newline. `version` is currently
 `2`.

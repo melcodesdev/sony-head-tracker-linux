@@ -150,10 +150,43 @@ and troubleshooting steps in
 > varies with Sony firmware and the platform Bluetooth stack. This project never
 > spoofs another headset, changes Bluetooth identities, or modifies firmware.
 
+### Linux
+
+The Linux port is a command-line bridge plus a GTK (libadwaita) desktop app. It
+discovers the headset by the Android Head Tracker HID descriptor, which appears as
+a `/dev/hidraw*` node. Validated end to end on a WH-1000XM5, including Assetto
+Corsa Competizione through Proton.
+
+Most people want the app:
+
+```bash
+# runtime: python-gobject, gtk4, libadwaita (per-distro packages in docs/LINUX.md)
+make              # build the CLI backend the app drives
+make gui          # run the desktop app
+make install-gui  # optional: add it to your application menu
+```
+
+In the app: click **Grant device access** (installs a udev rule, one password
+prompt), press **Start**, run **Calibrate axes** if the mapping feels off, and use
+**Set up a game** to wire OpenTrack for a Steam/Proton or native title.
+
+Terminal only:
+
+```bash
+make
+./build/sony-head-tracker probe    # verify the headset
+./build/sony-head-tracker bridge   # stream to OpenTrack on UDP 4242
+```
+
+Per-distro dependencies, compatibility, the global recenter shortcut, and
+troubleshooting are in [`docs/LINUX.md`](docs/LINUX.md). The pipeline internals are
+in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Contents
 
 - [Quick start](#quick-start)
 - [macOS guide](docs/MACOS.md)
+- [Linux guide](docs/LINUX.md)
 - [Compatibility](#compatibility)
 - [Where the data goes (ports)](#where-the-data-goes-ports)
 - [Gyroscope and accelerometer](#gyroscope-and-accelerometer)
@@ -357,6 +390,25 @@ ctest --test-dir build/macos --output-on-failure
 The app targets macOS 14 or later. Detailed permissions, CLI usage, build
 variants, device recovery, and ULT WEAR's silent A2DP keepalive are documented in
 [`docs/MACOS.md`](docs/MACOS.md).
+
+### Linux
+
+Needs a C++20 compiler (g++ 13+ / clang 16+) and Linux headers
+(`linux/hidraw.h`); no external libraries. Build with the provided Makefile, or
+with CMake like the other platforms:
+
+```bash
+make                     # -> build/sony-head-tracker, and `make test`
+
+# or with CMake:
+cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release
+cmake --build build/linux --target sony-head-tracker --parallel
+ctest --test-dir build/linux --output-on-failure
+```
+
+The GTK desktop app needs Python 3, PyGObject, GTK 4, and libadwaita 1.4+. Per
+distro runtime packages, the app walkthrough, and the global recenter shortcut are
+in [`docs/LINUX.md`](docs/LINUX.md) and [`gui/README.md`](gui/README.md).
 
 ### Windows
 

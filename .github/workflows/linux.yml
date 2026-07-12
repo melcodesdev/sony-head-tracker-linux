@@ -1,0 +1,21 @@
+name: Linux
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cxx: [ g++, clang++ ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential clang
+      - name: Build
+        run: make CXX=${{ matrix.cxx }}
+      - name: Test
+        run: make test CXX=${{ matrix.cxx }}

@@ -22,3 +22,7 @@ CMakeSettings.json
 # Local tooling
 .claude/
 *.log
+
+# Python bytecode
+__pycache__/
+*.pyc

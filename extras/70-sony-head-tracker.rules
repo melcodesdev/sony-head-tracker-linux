@@ -1,0 +1,24 @@
+# Grant the logged-in user access to Sony head-tracker HID devices, so
+# sony-head-tracker can open /dev/hidraw* without root. This is a ONE-TIME setup:
+# once installed, no password or admin prompt is ever needed again.
+#
+# Why match on the kernel name and not idVendor: the tracker is a Bluetooth HID
+# device exposed through uhid, which carries NO ATTRS{idVendor} in sysfs (that is
+# a USB-only attribute). Instead we match the parent HID device's kernel name,
+# BBBB:VVVV:PPPP.NNNN, where BBBB is the bus (0005 = Bluetooth, 0003 = USB) and
+# VVVV is Sony's vendor id 054C. TAG+="uaccess" makes systemd-logind grant the
+# active-session user an ACL on the node (no group membership or re-login needed).
+#
+# Install:
+#   sudo cp extras/70-sony-head-tracker.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# Then reconnect the headset once. After that it just works.
+
+# Sony over Bluetooth (bus 0005) and USB (bus 0003).
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:*", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0003:054C:*", TAG+="uaccess"
+
+# Fallback for setups without systemd-logind: also expose it to the 'input' group.
+# Harmless where uaccess already works; add yourself to 'input' if you rely on it.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:*", GROUP="input", MODE="0660"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0003:054C:*", GROUP="input", MODE="0660"

@@ -42,6 +42,11 @@ MotionSample OrientationFilter::process(MotionSample sample) {
     sample.orientation = multiply(conjugate(drift_), multiply(conjugate(center_), filtered_));
     sample.rotationVector = quaternionToRotationVector(sample.orientation);
     sample.euler = quaternionToEulerDegrees(sample.orientation);
+    // Final per-output Euler correction (identity by default; set by Calibrate).
+    const double be[3] = {sample.euler.yaw, sample.euler.pitch, sample.euler.roll};
+    sample.euler.yaw   = config_.outputSign[0] * be[config_.outputSource[0] % 3];
+    sample.euler.pitch = config_.outputSign[1] * be[config_.outputSource[1] % 3];
+    sample.euler.roll  = config_.outputSign[2] * be[config_.outputSource[2] % 3];
     return sample;
 }
 

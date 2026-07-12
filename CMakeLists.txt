@@ -97,3 +97,33 @@ if(APPLE)
     sht_apply_macos_hardening(sony_head_tracker_c_api_tests)
     add_test(NAME c-api COMMAND sony_head_tracker_c_api_tests)
 endif()
+
+if(LINUX)
+    find_package(Threads REQUIRED)
+
+    # Linux platform layer: hidraw backend, the HID report-descriptor parser that
+    # stands in for Windows HidP_* / macOS IOKit element parsing, the POSIX UDP
+    # transport (shared with macOS), and the logger/string shims.
+    add_library(sony_head_tracker_linux_platform STATIC
+        src/linux/hid_backend_linux.cpp
+        src/linux/hid_report_parser.cpp
+        src/linux/logger_linux.cpp
+        src/linux/platform_compat.cpp
+        src/macos/output_udp_posix.cpp
+    )
+    target_link_libraries(sony_head_tracker_linux_platform PUBLIC
+        sony_head_tracker_core
+        Threads::Threads
+    )
+    target_compile_options(sony_head_tracker_linux_platform PRIVATE -Wall -Wextra)
+
+    add_executable(sony-head-tracker src/linux/main_linux.cpp)
+    target_link_libraries(sony-head-tracker PRIVATE sony_head_tracker_linux_platform)
+
+    add_executable(sony_head_tracker_linux_tests
+        tests/test_main.cpp
+        tests/report_parser_tests.cpp
+    )
+    target_link_libraries(sony_head_tracker_linux_tests PRIVATE sony_head_tracker_linux_platform)
+    add_test(NAME linux COMMAND sony_head_tracker_linux_tests)
+endif()

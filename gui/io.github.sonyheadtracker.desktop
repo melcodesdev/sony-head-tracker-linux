@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=Sony Head Tracker
+GenericName=Head Tracker
+Comment=Use Sony headphones as a head tracker for racing, flight sims, and more
+Exec=sony-head-tracker-gui
+TryExec=sony-head-tracker-gui
+Icon=io.github.sonyheadtracker
+StartupWMClass=io.github.sonyheadtracker
+Terminal=false
+Categories=Utility;
+Keywords=head tracking;opentrack;sony;bluetooth;simracing;racing;driving;flight simulator;flightsim;
+Actions=recenter;
+
+# Exposed as a right-click action and as a bindable "Recenter view" global
+# shortcut (KDE lists desktop actions under the app in its Shortcuts settings).
+[Desktop Action recenter]
+Name=Recenter view
+Exec=sony-head-tracker-recenter

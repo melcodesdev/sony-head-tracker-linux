@@ -64,6 +64,12 @@ struct FilterConfig {
     // the mapping that yields correct head tracking on the WH-1000XM5. Overridable
     // via the CLI (--axis-map / --invert) and the GUI controls.
     AxisMapping axes{{1u, 0u, 2u}, {-1.0, 1.0, -1.0}};
+    // Final per-output correction in Euler space: the emitted yaw/pitch/roll are
+    // outputSign[i] * baseEuler[outputSource[i]] (i = 0 yaw, 1 pitch, 2 roll).
+    // Identity by default, so it changes nothing until the Calibrate wizard sets
+    // it. This is what the GUI adjusts live, on top of the base axes above.
+    std::array<unsigned, 3> outputSource{0, 1, 2};
+    std::array<double, 3> outputSign{1.0, 1.0, 1.0};
 };
 
 } // namespace sony

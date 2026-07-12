@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5aa0e0"/>
+      <stop offset="1" stop-color="#2b6cb0"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5c4226"/>
+      <stop offset="1" stop-color="#3d2c20"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <!-- horizon band (tilted, evokes the attitude indicator) -->
+  <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="52"/></clipPath>
+  <g clip-path="url(#clip)">
+    <polygon points="-20,150 276,110 276,276 -20,276" fill="url(#ground)"/>
+    <line x1="-20" y1="150" x2="276" y2="110" stroke="#ffffff" stroke-width="5"/>
+  </g>
+  <!-- headphones -->
+  <g fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round">
+    <path d="M78 132 A50 50 0 0 1 178 132"/>
+  </g>
+  <rect x="64" y="128" width="26" height="46" rx="12" fill="#ffffff"/>
+  <rect x="166" y="128" width="26" height="46" rx="12" fill="#ffffff"/>
+  <!-- centre reticle -->
+  <g stroke="#f6b73c" stroke-width="7" stroke-linecap="round">
+    <line x1="104" y1="196" x2="124" y2="196"/>
+    <line x1="132" y1="196" x2="152" y2="196"/>
+  </g>
+  <circle cx="128" cy="196" r="6" fill="#f6b73c"/>
+  <!-- Linux (Tux) badge, bottom-right: signals that this is the Linux port -->
+  <g>
+    <circle cx="200" cy="204" r="33" fill="#ffffff" stroke="#c3d0de" stroke-width="2"/>
+    <!-- feet -->
+    <ellipse cx="192" cy="228" rx="7" ry="3.6" fill="#f6a821"/>
+    <ellipse cx="208" cy="228" rx="7" ry="3.6" fill="#f6a821"/>
+    <!-- body -->
+    <ellipse cx="200" cy="207" rx="18" ry="22" fill="#1b1b1b"/>
+    <!-- belly -->
+    <ellipse cx="200" cy="212" rx="11" ry="14.5" fill="#ffffff"/>
+    <!-- eyes -->
+    <ellipse cx="194" cy="195" rx="4" ry="5.4" fill="#ffffff"/>
+    <ellipse cx="206" cy="195" rx="4" ry="5.4" fill="#ffffff"/>
+    <circle cx="195" cy="197" r="1.9" fill="#1b1b1b"/>
+    <circle cx="205" cy="197" r="1.9" fill="#1b1b1b"/>
+    <!-- beak -->
+    <polygon points="194,200 206,200 200,206" fill="#f6a821"/>
+  </g>
+</svg>

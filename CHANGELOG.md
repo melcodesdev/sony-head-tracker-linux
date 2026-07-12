@@ -6,6 +6,18 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Linux support.** A command-line bridge (`probe` / `dump` / `bridge`) and a
+  GTK / libadwaita desktop app. It discovers the headset by the Android Head
+  Tracker HID descriptor, surfaced as a `/dev/hidraw*` node, and streams the same
+  loopback UDP wire formats (OpenTrack doubles + JSON) as the other platforms.
+  Platform code lives in `src/linux/` alongside `src/macos/`, reusing the shared
+  tracking core and the POSIX UDP transport; the Windows and macOS builds are
+  unchanged. Includes a udev rule for rootless access, a guided calibration
+  wizard, a desktop-aware global recenter shortcut, and per-game OpenTrack setup
+  for Steam/Proton. Validated on a WH-1000XM5, including Assetto Corsa Competizione
+  through Proton. See [docs/LINUX.md](docs/LINUX.md).
+
 ## [2.2.0] - 2026-07-11
 
 macOS release. Sony Head Tracker now runs natively on macOS 14 or later, with
