@@ -85,6 +85,7 @@ install: $(BIN)
 	install -Dm755 $(BIN) $(DESTDIR)$(PREFIX)/bin/sony-head-tracker
 	install -Dm644 gui/sony_head_tracker_gui.py $(DATADIR)/sony_head_tracker_gui.py
 	install -Dm755 scripts/recenter.sh $(DATADIR)/scripts/recenter.sh
+	install -Dm755 scripts/connect-headset-hid.sh $(DATADIR)/scripts/connect-headset-hid.sh
 	install -Dm755 scripts/setup-recenter-shortcut.sh $(DATADIR)/scripts/setup-recenter-shortcut.sh
 	install -Dm755 scripts/setup-steam-game.sh $(DATADIR)/scripts/setup-steam-game.sh
 	install -Dm755 scripts/install-opentrack.sh $(DATADIR)/scripts/install-opentrack.sh

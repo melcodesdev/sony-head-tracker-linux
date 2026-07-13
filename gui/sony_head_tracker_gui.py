@@ -19,6 +19,7 @@ import shutil
 import socket
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 import gi
@@ -360,6 +361,8 @@ class TrackerWindow(Adw.ApplicationWindow):
         self._ready = False
         self._auto_started = False  # so auto-start fires once, not on every rescan
         self._apply_id = 0  # debounce timer for live settings changes
+        self._last_hid_nudge = 0.0  # rate-limit the auto Bluetooth HID connect
+        self._hid_nudging = False
 
         self._build_ui()
         # Never leave an orphaned bridge process or a bound UDP port behind.
@@ -384,6 +387,7 @@ class TrackerWindow(Adw.ApplicationWindow):
         header = Adw.HeaderBar()
         menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic")
         menu = Gio.Menu()
+        menu.append("Reconnect head tracker", "app.reconnect_hid")
         menu.append("Grant device access", "app.grant")
         menu.append("Install OpenTrack", "app.install_opentrack")
         menu.append("About", "app.about")
@@ -543,18 +547,62 @@ class TrackerWindow(Adw.ApplicationWindow):
             self.banner.set_revealed(True)
         else:  # nothing found
             self._set_status("warn", "No head tracker found")
-            self.banner.set_title("No head tracker found. Pair your Sony headset and connect it to this computer.")
-            self.banner.set_button_label("Re-check")
-            self._banner_action = "recheck"
+            self.banner.set_title("No head tracker found. Make sure your Sony headset is connected to this computer.")
+            self.banner.set_button_label("Reconnect headset")
+            self._banner_action = "reconnect_hid"
             self.banner.set_revealed(True)
+            # Sony headsets often connect audio only; nudge BlueZ to attach the
+            # head-tracker HID profile, then re-scan. Rate-limited so the idle
+            # rescan loop does not spam it.
+            self._nudge_hid()
         return False
 
     def _on_banner_action(self, _banner):
         action = getattr(self, "_banner_action", "recheck")
         if action == "grant":
             self.grant_access()
+        elif action == "reconnect_hid":
+            self._nudge_hid(manual=True)
         else:
             self._refresh_device()
+
+    # ---- Bluetooth HID connect ---------------------------------------------
+    def _nudge_hid(self, manual: bool = False):
+        """Ask BlueZ to connect the Sony headset's head-tracker HID profile (which
+        it often leaves unconnected, so no /dev/hidraw node appears), then re-scan.
+        Auto-called on a failed detection (rate-limited); also a manual action."""
+        if self._hid_nudging:
+            return
+        now = time.monotonic()
+        if not manual and now - self._last_hid_nudge < 12:
+            return
+        self._last_hid_nudge = now
+        self._hid_nudging = True
+        self._set_status("busy", "Connecting head tracker...")
+
+        def worker():
+            count = "0"
+            try:
+                r = subprocess.run([str(SCRIPTS_DIR / "connect-headset-hid.sh")],
+                                   capture_output=True, text=True, timeout=15)
+                count = (r.stdout or "0").strip()
+            except Exception:  # noqa: BLE001
+                pass
+            GLib.idle_add(self._nudge_done, count, manual)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _nudge_done(self, count: str, manual: bool):
+        self._hid_nudging = False
+        try:
+            n = int(count or "0")
+        except ValueError:
+            n = 0
+        if manual and n == 0:
+            self._toast("No connected Sony headset found. Connect it over Bluetooth, then try again.")
+        # Give BlueZ a moment to create the hidraw node, then re-scan.
+        GLib.timeout_add(1500, self._refresh_device)
+        return False
 
     # ---- Tracking ----------------------------------------------------------
     def _toggle_tracking(self, _btn):
@@ -1379,6 +1427,7 @@ class TrackerApp(Adw.Application):
         if not self.win:
             self.win = TrackerWindow(self)
             for name, cb in (("about", self._about), ("grant", lambda *_: self.win.grant_access()),
+                             ("reconnect_hid", lambda *_: self.win._nudge_hid(manual=True)),
                              ("install_opentrack", lambda *_: self.win.install_opentrack())):
                 act = Gio.SimpleAction.new(name, None)
                 act.connect("activate", cb)
