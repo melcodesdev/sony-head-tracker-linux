@@ -22,19 +22,28 @@ Produces `sony-head-tracker_2.2.0_amd64.deb` and
 install with `sudo apt install ./…​.deb` or `sudo dnf install ./…​.rpm`. Not a
 repo, but real native packages with correct dependencies and a udev reload hook.
 
-## Option B: hosted repos (proper `apt install` / `dnf install`)
+## Option B: hosted repos (proper `apt install` / `dnf install` by name)
 
-Free build services that host a repo and rebuild when you push. Their signup is
-open (unlike the AUR right now).
+Free build services that host a repo and rebuild when you push. The user adds the
+repo **once** (a one-liner), then installs by name and gets updates like any other
+package. There is no zero-setup `apt install <name>` unless the package is accepted
+into a distro's official archives, which is a separate months-long process. Their
+signup is open (unlike the AUR right now).
 
 ### Fedora / RHEL (dnf) - COPR
 
+Uses [`packaging/rpm/sony-head-tracker.spec`](../rpm/sony-head-tracker.spec).
+
 1. Sign in at <https://copr.fedorainfracloud.org> with a Fedora account (FAS).
-2. New Project, then a package using the **SCM** build method: Clone URL
-   `https://github.com/melcodesdev/sony-head-tracker-linux`, build with `rpkg`
-   or point it at an `.spec` (generate one from the `.rpm` above with
-   `rpm2cpio`, or write a short spec that runs `make` + `make install`).
-3. Users: `sudo dnf copr enable melcodesdev/sony-head-tracker && sudo dnf install sony-head-tracker`.
+2. New Project, then add a package with the **SCM** build method: Type `git`,
+   Clone URL `https://github.com/melcodesdev/sony-head-tracker-linux`, Spec File
+   `packaging/rpm/sony-head-tracker.spec`, Source build method `rpkg`. Build it
+   once and fix any chroot-specific issues COPR reports.
+3. Users then run, once:
+   ```sh
+   sudo dnf copr enable melcodesdev/sony-head-tracker
+   sudo dnf install sony-head-tracker      # by name; updates via dnf upgrade
+   ```
 
 ### Debian/Ubuntu + Fedora together - openSUSE OBS
 
