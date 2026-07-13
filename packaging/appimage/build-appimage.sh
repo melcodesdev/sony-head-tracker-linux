@@ -29,39 +29,84 @@ mkdir -p "$TOOLS"
 fetch() { [ -f "$TOOLS/$1" ] || wget -q --show-progress -O "$TOOLS/$1" "$2"; chmod +x "$TOOLS/$1"; }
 fetch linuxdeploy "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$ARCH.AppImage"
 fetch linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+fetch appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$ARCH.AppImage"
+# GTK4 has no loadable-modules dir on some distros (unlike GTK3); make the plugin
+# tolerate its absence instead of aborting on a missing /usr/lib/gtk-4.0.
+sed -i 's#copy_lib_tree "$gtk4_libdir" "$APPDIR/"#[ -d "$gtk4_libdir" ] \&\& copy_lib_tree "$gtk4_libdir" "$APPDIR/" || echo "no gtk-4.0 modules dir, skipping"#' \
+    "$TOOLS/linuxdeploy-plugin-gtk.sh"
+# So linuxdeploy finds the gtk plugin and appimagetool, and so the tools run
+# without a FUSE mount (works in containers and on fuse3-only systems).
+export PATH="$TOOLS:$PATH"
+export APPIMAGE_EXTRACT_AND_RUN=1
 
-echo "==> Bundling the Python interpreter and PyGObject (gi)"
+echo "==> Bundling the Python interpreter, standard library, and PyGObject (gi)"
 # linuxdeploy's GTK plugin bundles GTK4, libadwaita, gdk-pixbuf loaders, the
 # GObject-introspection typelibs, and GSettings schemas. It does NOT bundle
-# Python, so copy the interpreter and the gi bindings in ourselves.
+# Python, so bring the interpreter, its full standard library (encodings,
+# lib-dynload C extensions, ssl, ...), and the gi bindings in ourselves.
 PYBIN="$(command -v python3)"
 PYVER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-install -Dm755 "$PYBIN" "$APPDIR/usr/bin/python3"
-# The gi package (Python side of PyGObject); the C typelibs come from the GTK plugin.
+PYSTD="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
 GI_DIR="$(python3 -c 'import gi, os; print(os.path.dirname(gi.__file__))')"
-mkdir -p "$APPDIR/usr/lib/python$PYVER/site-packages"
-cp -r "$GI_DIR" "$APPDIR/usr/lib/python$PYVER/site-packages/"
+CAIRO_DIR="$(python3 -c 'import cairo, os; print(os.path.dirname(cairo.__file__))' 2>/dev/null || true)"
+PYDST="$APPDIR/usr/lib/python$PYVER"
+install -Dm755 "$PYBIN" "$APPDIR/usr/bin/python3"
+mkdir -p "$PYDST"
+# Full stdlib (encodings, lib-dynload, ssl, ...), but WITHOUT the host's
+# site-packages (which would drag in every unrelated system Python package), the
+# test suite, or bytecode caches.
+cp -a "$PYSTD/." "$PYDST/"
+rm -rf "$PYDST/site-packages" "$PYDST/test"
+find "$PYDST" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+# Only the two Python packages the GUI needs: gi (PyGObject) and cairo (pycairo,
+# which PyGObject's drawing goes through). The C typelibs come from the GTK plugin.
+mkdir -p "$PYDST/site-packages"
+cp -a "$GI_DIR" "$PYDST/site-packages/"
+[ -n "$CAIRO_DIR" ] && cp -a "$CAIRO_DIR" "$PYDST/site-packages/"
+
+echo "==> Bundling the Adwaita icon theme (symbolic icons the UI uses)"
+# Without this the menu / arrow / checkmark symbolic icons render broken.
+mkdir -p "$APPDIR/usr/share/icons"
+for theme in Adwaita hicolor; do
+    [ -d "/usr/share/icons/$theme" ] && cp -a "/usr/share/icons/$theme" "$APPDIR/usr/share/icons/"
+done
+# The SVG pixbuf loader (librsvg) so SVG icons actually rasterise.
+GDK_LOADERS="$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0 2>/dev/null || true)"
+if [ -n "$GDK_LOADERS" ] && [ -d "$GDK_LOADERS" ]; then
+    dest="$APPDIR/usr/lib/$(basename "$(dirname "$GDK_LOADERS")")/$(basename "$GDK_LOADERS")"
+    mkdir -p "$dest"; cp -a "$GDK_LOADERS"/*svg* "$dest/" 2>/dev/null || true
+fi
 
 echo "==> Writing AppRun"
-cat > "$APPDIR/AppRun" <<EOF
+# Must live OUTSIDE the AppDir: linuxdeploy copies --custom-apprun into AppDir/AppRun.
+APPRUN="$ROOT/AppRun.custom"
+cat > "$APPRUN" <<EOF
 #!/bin/sh
 HERE="\$(dirname "\$(readlink -f "\$0")")"
+export APPDIR="\$HERE"
+# Source the linuxdeploy GTK hooks (GTK theme, GI_TYPELIB_PATH, GDK_PIXBUF loaders,
+# GSettings schemas) before launching; they key off \$APPDIR.
+for hook in "\$HERE"/apprun-hooks/*.sh; do [ -r "\$hook" ] && . "\$hook"; done
+# libadwaita styles its own widgets; the GTK plugin forces GTK_THEME, which breaks
+# that (and warns). Clear it so the app looks native, and let libadwaita follow the
+# desktop's light/dark preference.
+unset GTK_THEME GTK_THEME_VARIANT
 export PATH="\$HERE/usr/bin:\$PATH"
-export LD_LIBRARY_PATH="\$HERE/usr/lib:\$HERE/usr/lib/$ARCH-linux-gnu:\$LD_LIBRARY_PATH"
-export GI_TYPELIB_PATH="\$HERE/usr/lib/girepository-1.0:\$HERE/usr/lib/$ARCH-linux-gnu/girepository-1.0:\$GI_TYPELIB_PATH"
+export LD_LIBRARY_PATH="\$HERE/usr/lib:\$LD_LIBRARY_PATH"
 export XDG_DATA_DIRS="\$HERE/usr/share:\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export PYTHONHOME="\$HERE/usr"
-export PYTHONPATH="\$HERE/usr/lib/python$PYVER/site-packages:\$PYTHONPATH"
+export PYTHONPATH="\$HERE/usr/lib/python$PYVER:\$HERE/usr/lib/python$PYVER/site-packages"
+export PYTHONDONTWRITEBYTECODE=1
 exec "\$HERE/usr/bin/python3" "\$HERE/usr/share/sony-head-tracker/sony_head_tracker_gui.py" "\$@"
 EOF
-chmod +x "$APPDIR/AppRun"
+chmod +x "$APPRUN"
 
 echo "==> Running linuxdeploy with the GTK plugin"
 export DEPLOY_GTK_VERSION=4
 export OUTPUT="Sony_Head_Tracker-$ARCH.AppImage"
 "$TOOLS/linuxdeploy" --appdir "$APPDIR" \
     --plugin gtk \
-    --custom-apprun "$APPDIR/AppRun" \
+    --custom-apprun "$APPRUN" \
     --desktop-file "$APPDIR/usr/share/applications/io.github.sonyheadtracker.desktop" \
     --icon-file "$APPDIR/usr/share/icons/hicolor/scalable/apps/io.github.sonyheadtracker.svg" \
     --output appimage

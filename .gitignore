@@ -26,3 +26,10 @@ CMakeSettings.json
 # Python bytecode
 __pycache__/
 *.pyc
+
+# AppImage build artifacts
+AppDir/
+.appimage-tools/
+squashfs-root/
+AppRun.custom
+*.AppImage
