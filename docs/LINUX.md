@@ -29,6 +29,11 @@ through Proton. For how the pipeline works internally, see
 
 Pick whichever fits your setup:
 
+- **Fedora / RHEL (dnf, COPR):** install by name from the COPR repo, with updates:
+  ```sh
+  sudo dnf copr enable melcodesdev/sony-head-tracker
+  sudo dnf install sony-head-tracker
+  ```
 - **Arch / CachyOS / Manjaro (AUR):** the [`packaging/aur/`](../packaging/aur/)
   PKGBUILD. `makepkg -si` from that directory builds and installs everything (CLI,
   GUI, udev rule, desktop entry). Once it is on the AUR you can use an AUR helper,
