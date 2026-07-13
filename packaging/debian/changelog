@@ -1,0 +1,5 @@
+sony-head-tracker (2.2.0-1) unstable; urgency=medium
+
+  * Initial Linux packaging (CLI + GTK app).
+
+ -- melcodesdev <melcodesdev@users.noreply.github.com>  Mon, 13 Jul 2026 00:00:00 +0000

@@ -1,0 +1,20 @@
+Source: sony-head-tracker
+Section: utils
+Priority: optional
+Maintainer: melcodesdev <melcodesdev@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), g++ (>= 13), make
+Standards-Version: 4.6.2
+Homepage: https://github.com/melcodesdev/sony-head-tracker-linux
+Rules-Requires-Root: no
+
+Package: sony-head-tracker
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ libgtk-4-1, libadwaita-1-0, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1
+Recommends: opentrack
+Description: head tracking from Sony headphones for OpenTrack
+ Turns compatible Sony Bluetooth headphones into a real-time head tracker for
+ OpenTrack and other applications, with a command-line bridge and a GTK app.
+ It reads the Android Head Tracker HID sensor the headset exposes and streams
+ yaw/pitch/roll over loopback UDP. Linux port of Nicholas Slattery's Sony Head
+ Tracker.
