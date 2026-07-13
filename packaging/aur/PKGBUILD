@@ -20,7 +20,7 @@ optdepends=('opentrack: drive the in-game camera from the head-tracking data'
             'curl: download OpenTrack for Steam/Proton setup')
 provides=('sony-head-tracker')
 conflicts=('sony-head-tracker')
-source=("$pkgname::git+https://github.com/melcodesdev/sony-head-tracker-linux.git#branch=linux-support")
+source=("$pkgname::git+https://github.com/melcodesdev/sony-head-tracker-linux.git#branch=main")
 sha256sums=('SKIP')
 install="$pkgname.install"
 

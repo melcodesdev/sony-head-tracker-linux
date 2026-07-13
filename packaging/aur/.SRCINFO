@@ -20,7 +20,7 @@ pkgbase = sony-head-tracker-git
 	optdepends = curl: download OpenTrack for Steam/Proton setup
 	provides = sony-head-tracker
 	conflicts = sony-head-tracker
-	source = sony-head-tracker-git::git+https://github.com/melcodesdev/sony-head-tracker-linux.git#branch=linux-support
+	source = sony-head-tracker-git::git+https://github.com/melcodesdev/sony-head-tracker-linux.git#branch=main
 	sha256sums = SKIP
 
 pkgname = sony-head-tracker-git
