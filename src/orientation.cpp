@@ -39,7 +39,14 @@ MotionSample OrientationFilter::process(MotionSample sample) {
         integratedDrift_.x+=gyroBias_.x*dt;integratedDrift_.y+=gyroBias_.y*dt;integratedDrift_.z+=gyroBias_.z*dt;
         drift_=rotationVectorToQuaternion(integratedDrift_);
     }
-    sample.orientation = multiply(conjugate(drift_), multiply(conjugate(center_), filtered_));
+    if (config_.levelOutput) {
+        // World-frame relative rotation (now * center^-1): cancels the headset's
+        // mounting tilt so pure pitch stays pure. Drift is omitted here because the
+        // devices that need this (Sony) report no gyroscope, so drift_ is identity.
+        sample.orientation = multiply(filtered_, conjugate(center_));
+    } else {
+        sample.orientation = multiply(conjugate(drift_), multiply(conjugate(center_), filtered_));
+    }
     sample.rotationVector = quaternionToRotationVector(sample.orientation);
     sample.euler = quaternionToEulerDegrees(sample.orientation);
     // Final per-output Euler correction (identity by default; set by Calibrate).

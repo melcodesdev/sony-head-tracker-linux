@@ -63,6 +63,7 @@ DEFAULTS = {
     "out_src": [0, 1, 2],
     "out_sign": [1, 1, -1],  # yaw normal, pitch normal, roll inverted (default)
     "auto_start": False,     # start tracking automatically once the headset is ready
+    "level_output": False,   # experimental: world-frame output (cancels mounting tilt)
 }
 
 
@@ -636,8 +637,12 @@ class TrackerWindow(Adw.ApplicationWindow):
         self._control(f"OUT {src[0]} {src[1]} {src[2]} {sign[0]} {sign[1]} {sign[2]} "
                       f"{self.cfg.get('smoothing', 0.18)}")
 
+    def _control_level(self):
+        self._control(f"LEVEL {1 if self.cfg.get('level_output') else 0}")
+
     def _push_control_once(self):
         self._control_apply()
+        self._control_level()
         return False
 
     def _on_recenter(self, _btn):
@@ -885,6 +890,13 @@ class TrackerWindow(Adw.ApplicationWindow):
         autostart.connect("notify::active", lambda r, _p: self._set_cfg("auto_start", r.get_active()))
         group.add(autostart)
 
+        level = Adw.SwitchRow(title="Level compensation (experimental)",
+                              subtitle="Stops looking up/down from adding roll. Recenter with "
+                                       "your head level and forward after turning it on.",
+                              active=bool(self.cfg.get("level_output")))
+        level.connect("notify::active", lambda r, _p: self._set_cfg("level_output", r.get_active()))
+        group.add(level)
+
         port_adj = Gtk.Adjustment(lower=1, upper=65534, step_increment=1, value=self.cfg["port"])
         port = Adw.SpinRow(title="UDP port", subtitle="JSON telemetry uses port + 1", adjustment=port_adj)
         port_adj.connect("value-changed", lambda a: self._set_cfg("port", int(a.get_value())))
@@ -1031,6 +1043,8 @@ class TrackerWindow(Adw.ApplicationWindow):
         if key in ("out_src", "out_sign", "smoothing"):
             # Applied live over the control socket: tracking never stops.
             self._control_apply()
+        elif key == "level_output":
+            self._control_level()
         elif self.proc and key == "port":
             # The port lives in the bridge command, so it needs a (debounced) restart.
             if self._apply_id:

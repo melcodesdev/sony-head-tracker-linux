@@ -70,6 +70,12 @@ struct FilterConfig {
     // it. This is what the GUI adjusts live, on top of the base axes above.
     std::array<unsigned, 3> outputSource{0, 1, 2};
     std::array<double, 3> outputSign{1.0, 1.0, 1.0};
+    // Experimental, opt-in. When true the recentered orientation is expressed as a
+    // world-frame relative rotation (now * center^-1) instead of the body-frame
+    // (center^-1 * now). The world frame cancels the headset's mounting tilt, so a
+    // pure head pitch no longer bleeds into roll/yaw. Off by default so existing
+    // calibrations and the other platforms are unchanged.
+    bool levelOutput{false};
 };
 
 } // namespace sony

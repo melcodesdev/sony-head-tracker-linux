@@ -120,6 +120,8 @@ int runBridge(sony::HidBackend& hid, int argc, char** argv) {
         } else if (opt == "--axis-map" && i + 1 < argc) {
             const std::string map = argv[++i];
             if (map.size() == 3) for (unsigned o = 0; o < 3; ++o) { const char c = static_cast<char>(std::tolower(map[o])); config.axes.source[o] = c == 'x' ? 0 : c == 'y' ? 1 : 2; }
+        } else if (opt == "--level") {
+            config.levelOutput = true;   // world-frame output: cancels mounting tilt
         }
     }
 
@@ -178,6 +180,13 @@ int runBridge(sony::HidBackend& hid, int argc, char** argv) {
                         live.outputSource = {s0 % 3, s1 % 3, s2 % 3};
                         live.outputSign = {g0, g1, g2};
                         live.smoothing = std::clamp(sm, 0.01, 1.0);
+                        std::scoped_lock lock(filterMutex);
+                        filter.setConfig(live);
+                    }
+                } else if (std::strncmp(buf, "LEVEL", 5) == 0) {
+                    int on = 0;
+                    if (std::sscanf(buf + 5, "%d", &on) == 1) {
+                        live.levelOutput = (on != 0);
                         std::scoped_lock lock(filterMutex);
                         filter.setConfig(live);
                     }
