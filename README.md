@@ -1,11 +1,12 @@
 # Sony Head Tracker
 
 Use the motion sensors already inside compatible Sony headphones and earbuds as
-a real-time head tracker on Windows or macOS.
+a real-time head tracker on Linux, Windows, or macOS.
 
 [![Build](https://github.com/NicholasSlattery/sony-head-tracker/actions/workflows/build.yml/badge.svg)](https://github.com/NicholasSlattery/sony-head-tracker/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/NicholasSlattery/sony-head-tracker)](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg)](docs/LINUX.md)
 [![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg)](#build)
 [![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-000000.svg)](docs/MACOS.md)
 [![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](#build)
@@ -23,19 +24,27 @@ or your own applications.
 No webcam, infrared tracker, additional hardware, firmware modification, or
 custom kernel driver is required.
 
+**This repository is the Linux-focused fork.** The native Linux port — the
+command-line bridge, the GTK (libadwaita) desktop app, the udev integration, the
+Proton game setup, and the distro packaging — is developed here, on top of the
+upstream Windows and macOS support, which is kept working. If you are on Linux,
+[start here](#quick-start-linux); Windows and macOS instructions follow
+[further down](#other-platforms).
+
 Originally developed and tested for the Sony WH-1000XM5, the project now supports
 any compatible Sony headset that exposes the standard
 [Android Head Tracker HID protocol](https://source.android.com/docs/core/interaction/sensors/head-tracker-hid-protocol).
 
-If you arrived searching for **Sony WH-1000XM5 head tracking on Windows**, how to
+If you arrived searching for **Sony WH-1000XM5 head tracking on Linux**, how to
 **use WH-1000XM5 with OpenTrack**, or an **XM5 head tracker for Assetto Corsa** or
-other sims, you are in the right place: the WH-1000XM5 is the reference device,
-and the same bridge now works across the wider Sony range.
+other sims (including through Proton), you are in the right place: the WH-1000XM5
+is the reference device, and the same bridge now works across the wider Sony range
+and on Windows and macOS too.
 
 ## What you can do with it
 
 - Use compatible Sony headphones for head tracking in racing and flight
-  simulators.
+  simulators, including Steam titles running under Proton.
 - Send live yaw, pitch, and roll to OpenTrack.
 - Read orientation, quaternion, and gyroscope data through a local JSON stream.
 - Inspect sensor activity through the included native diagnostics interfaces.
@@ -51,126 +60,84 @@ and the same bridge now works across the wider Sony range.
 - [Techspot — A free app lets Sony headphones do head tracking for racing and flight sims](https://www.techspot.com/news/113019-free-app-sony-headphones-do-head-tracking-racing.html)
 - [SoundGuys — This free app turns Sony WH-1000XM5 into head trackers for PC gaming](https://www.soundguys.com/sony-headphones-windows-head-tracking-159435/)
 
+## Contents
 
-## Quick start
+- [Quick start (Linux)](#quick-start-linux)
+- [Linux guide](docs/LINUX.md)
+- [Compatibility](#compatibility)
+- [Where the data goes (ports)](#where-the-data-goes-ports)
+- [Gyroscope and accelerometer](#gyroscope-and-accelerometer)
+- [Default orientation](#default-orientation-yxz-x-and-z-inverted)
+- [Other platforms (Windows, macOS)](#other-platforms)
+- [Build](#build)
+- [Pair the headphones (Windows)](#pair-the-headphones)
+- [Usage (Windows)](#usage)
+- [The GUI (Windows)](#the-gui)
+- [OpenTrack (Windows)](#opentrack)
+- [When the sensor won't show up (Windows)](#when-the-sensor-wont-show-up)
+- [Protocol and security notes](#protocol-and-security-notes)
+- [Contributing](#contributing)
+- [License](#license)
 
-### Windows 11
-
-1. Download `sony-head-tracker.exe` from the
-   [latest release](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest)
-   (or [build it yourself](#build), it is one `cl` command).
-2. [Pair your compatible Sony headphones or earbuds](#pair-the-headphones)
-   through Windows 11.
-3. Open the application. It automatically discovers compatible head-tracking
-   sensors, displays live orientation data, and streams tracking output while it
-   is open.
-4. **Starting the app for the first time on a fresh boot? Press Repair Tracker
-   first.** Windows very often pairs a Sony headset but does not create the
-   head-tracker sensor node until something nudges it, so on a cold boot the app
-   frequently shows nothing at first. Press the **Repair Tracker** button and
-   approve the single administrator prompt. This is the normal first step, not a
-   sign that anything is broken, and it is exactly what the button is for. After
-   the app reopens, your headset should appear.
-5. For games: in OpenTrack, select **UDP over network** as the input and use
-   port `4242`, then press **Start**. See [OpenTrack](#opentrack).
-6. For your own code: read one JSON object per sample from port `4243`. See
-   [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
-7. Press **Recenter** (or Ctrl+Alt+C) while facing forward.
-
-### macOS 14 or later
-
-The macOS port includes a native SwiftUI application and a command-line bridge.
-It discovers devices by the Android Head Tracker HID descriptor instead of by
-model name, VID/PID, report ID, or report length.
-
-Choose **one** of the following ways to run Sony Head Tracker. You do not need
-to build or run more than one. Downloading the prebuilt package requires no
-developer tools; building from source (Options 2 and 3) requires full Xcode
-selected with `xcode-select`, and the command-line option additionally requires
-CMake 3.25 or later.
-
-#### Option 1 — Download the prebuilt package (no Xcode required)
-
-1. Download `sony-head-tracker-vX.Y.Z-macos-universal.zip` from the
-   [latest release](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest).
-   It contains the SwiftUI app and the CLI bridge as universal (Apple Silicon +
-   Intel) binaries for macOS 14 or later.
-2. Unzip it and move `SonyHeadTracker.app` wherever you like.
-3. The app is ad-hoc signed but not notarized, so Gatekeeper flags the first
-   launch: right-click (Control-click) the app and choose **Open**. If macOS
-   does not offer **Open**, go to **System Settings > Privacy & Security**,
-   scroll to the blocked-app notice, and click **Open Anyway**.
-4. Allow Sony Head Tracker under **System Settings > Privacy & Security >
-   Input Monitoring**, then quit and reopen it.
-
-#### Option 2 — Build the native macOS application
-
-The application does not require a separate CMake build. From the repository
-root, run:
-
-```bash
-./script/build_and_run.sh
-```
-
-The script builds the committed Xcode project and opens `SonyHeadTracker.app`.
-It does not inspect or use signing identities unless you explicitly opt in with
-`SHT_ENABLE_STABLE_SIGNING=1`; see the macOS guide for the Input Monitoring
-continuity workflow.
-
-#### Option 3 — Command-line bridge
-
-Use this option when you want a Terminal-only bridge without the SwiftUI
-application:
-
-```bash
-cmake -S . -B build/macos -DCMAKE_BUILD_TYPE=Release
-cmake --build build/macos --target sony-head-tracker-macos --parallel
-./build/macos/sony-head-tracker-macos bridge
-```
-
-Do not run the application and CLI bridge at the same time; they would compete
-for the same tracker and send duplicate data to the same loopback UDP ports.
-
-XcodeGen is **not** required for a normal build. Regenerate the committed Xcode
-project only after changing `macos/project.yml`:
-
-```bash
-cd macos
-xcodegen generate
-```
-
-On first use, allow Sony Head Tracker under **System Settings > Privacy &
-Security > Input Monitoring**, then quit and reopen the application or CLI.
-See the complete setup, device-support status, ULT WEAR audio activation note,
-and troubleshooting steps in
-[`docs/MACOS.md`](docs/MACOS.md).
-
-> **Hardware status:** changing orientation reports have been received from a
-> physical WH-1000XM5 on Windows and a physical ULT WEAR on macOS. Behaviour
-> varies with Sony firmware and the platform Bluetooth stack. This project never
-> spoofs another headset, changes Bluetooth identities, or modifies firmware.
-
-### Linux
+## Quick start (Linux)
 
 The Linux port is a command-line bridge plus a GTK (libadwaita) desktop app. It
 discovers the headset by the Android Head Tracker HID descriptor, which appears as
 a `/dev/hidraw*` node. Validated end to end on a WH-1000XM5, including Assetto
 Corsa Competizione through Proton.
 
+### 1. Install
+
+Pick whichever fits your setup:
+
+- **Fedora / RHEL (dnf, COPR):**
+  ```bash
+  sudo dnf copr enable melcodesdev/sony-head-tracker
+  sudo dnf install sony-head-tracker
+  ```
+- **Arch / CachyOS / Manjaro (AUR):** the [`packaging/aur/`](packaging/aur/)
+  PKGBUILD — `makepkg -si` builds and installs everything (CLI, GUI, udev rule,
+  desktop entry). Via an AUR helper: `paru -S sony-head-tracker-git`.
+- **Any distro (system install):** install the runtime packages below, then
+  `make && sudo make install PREFIX=/usr`. Remove with
+  `sudo make uninstall PREFIX=/usr`.
+- **AppImage (single file, any distro):** experimental, see
+  [`packaging/appimage/`](packaging/appimage/).
+- **From source (no install):** `make` then `make gui`, straight from the checkout.
+
+Runtime packages for the desktop app (the CLI itself needs only a C++20 compiler
+and Linux headers):
+
+| Distro | Command |
+| ------ | ------- |
+| Arch / CachyOS / Manjaro | `sudo pacman -S base-devel python-gobject gtk4 libadwaita` |
+| Debian / Ubuntu / Mint | `sudo apt install build-essential python3-gi gir1.2-gtk-4.0 gir1.2-adw-1` |
+| Fedora | `sudo dnf install gcc-c++ python3-gobject gtk4 libadwaita` |
+
+The rest of this section assumes a from-source checkout; if you installed a
+package, drop the `./build/` prefix (the CLI is on `PATH` as `sony-head-tracker`).
+
+### 2. Run the desktop app
+
 Most people want the app:
 
 ```bash
-# runtime: python-gobject, gtk4, libadwaita (per-distro packages in docs/LINUX.md)
 make              # build the CLI backend the app drives
 make gui          # run the desktop app
 make install-gui  # optional: add it to your application menu
 ```
 
-In the app: click **Grant device access** (installs a udev rule, one password
-prompt), press **Start**, run **Calibrate axes** if the mapping feels off, and use
-**Set up a game** to wire OpenTrack for a Steam/Proton or native title.
+1. **Pair** your Sony headset over Bluetooth in your desktop's Bluetooth settings,
+   and make sure it is connected to *this* computer (not only your phone).
+2. **Grant device access:** when the app shows the banner, click **Grant device
+   access** (installs a udev rule, one password prompt), then reconnect the
+   headset. One time only.
+3. **Start:** press **Start**; the attitude indicator follows your head.
+4. **Calibrate axes** if the mapping feels off — the wizard learns yaw/pitch/roll
+   from a few guided head movements and applies it live.
+5. **Set up a game** wires OpenTrack for a Steam/Proton title or a native game.
 
-Terminal only:
+### 3. Or run it from the terminal
 
 ```bash
 make
@@ -178,28 +145,62 @@ make
 ./build/sony-head-tracker bridge   # stream to OpenTrack on UDP 4242
 ```
 
-Per-distro dependencies, compatibility, the global recenter shortcut, and
-troubleshooting are in [`docs/LINUX.md`](docs/LINUX.md). The pipeline internals are
-in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+```text
+sony-head-tracker probe                      list HID devices, flag the tracker
+sony-head-tracker dump [--seconds N]         hex-dump raw input reports
+sony-head-tracker bridge [--port 4242] [--seconds N]
+                         [--axis-map YXZ] [--invert XZ] [--smoothing 0.18]
+sony-head-tracker help | version
+```
 
-## Contents
+### 4. Device access (udev)
 
-- [Quick start](#quick-start)
-- [macOS guide](docs/MACOS.md)
-- [Linux guide](docs/LINUX.md)
-- [Compatibility](#compatibility)
-- [Where the data goes (ports)](#where-the-data-goes-ports)
-- [Gyroscope and accelerometer](#gyroscope-and-accelerometer)
-- [Default orientation](#default-orientation-yxz-x-and-z-inverted)
-- [Build](#build)
-- [Pair the headphones](#pair-the-headphones)
-- [Usage](#usage)
-- [The GUI](#the-gui)
-- [OpenTrack](#opentrack)
-- [When the sensor won't show up](#when-the-sensor-wont-show-up)
-- [Protocol and security notes](#protocol-and-security-notes)
-- [Contributing](#contributing)
-- [License](#license)
+hidraw nodes are root-only by default. The app's **Grant device access** button
+does this for you; by hand it is:
+
+```bash
+sudo cp extras/70-sony-head-tracker.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Reconnect the headset afterwards. The rule grants access via `uaccess`
+(systemd-logind or elogind); on a system with neither it also opens the device to
+the `input` group, so run `sudo usermod -aG input $USER` and log back in.
+
+### 5. OpenTrack and Proton games
+
+Set OpenTrack's input to **UDP over network** on port `4242`, run
+`sony-head-tracker bridge` (or leave the app tracking), and press **Start**.
+[`scripts/install-opentrack.sh`](scripts/install-opentrack.sh) installs OpenTrack
+for your package manager, and
+[`extras/opentrack-sony-head-tracker.ini`](extras/opentrack-sony-head-tracker.ini)
+is a starting profile.
+
+For Steam games under Proton, OpenTrack has to run inside the game's own Wine
+prefix. **Set up a game** in the app (or
+[`scripts/setup-steam-game.sh`](scripts/setup-steam-game.sh)) automates it:
+installs a Wine-friendly OpenTrack, writes a Proton launch wrapper, and
+pre-configures the OpenTrack profile. Paste the printed launch line into the
+game's Steam **Launch Options**, start the tracker, and play.
+
+### 6. Global recenter shortcut
+
+"Recenter" makes wherever you are looking the new forward. Bind it to a key you
+can press from inside a game via **Settings > Recenter shortcut**; the app detects
+your desktop and registers it the right way (KDE via KGlobalAccel, GNOME/XFCE via
+gsettings/xfconf, Hyprland/Sway by editing the compositor config, a printed
+command elsewhere). From a terminal:
+
+```bash
+scripts/setup-recenter-shortcut.sh detect      # your desktop, and whether it is automatic
+scripts/setup-recenter-shortcut.sh enable F9   # bind F9 (or Meta+C, etc.)
+scripts/setup-recenter-shortcut.sh disable
+```
+
+Per-distro dependencies, compatibility, and troubleshooting are in
+[`docs/LINUX.md`](docs/LINUX.md); the desktop app's own notes are in
+[`gui/README.md`](gui/README.md), and the pipeline internals are in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Compatibility
 
@@ -217,6 +218,7 @@ the same protocol.
 then run:
 
 ```text
+Linux:   ./build/sony-head-tracker probe
 Windows: sony-head-tracker.exe probe
 macOS:   ./build/macos/sony-head-tracker-macos probe
 ```
@@ -240,17 +242,16 @@ below will be updated.
 | Sony WF-1000XM6 | community confirmed |
 | Sony ULT WEAR (WH-ULT900N) | community confirmed |
 
-The table above records project-wide compatibility, primarily from the existing
-Windows implementation. The macOS backend uses the same descriptor-defined
-Android Head Tracker protocol and is not restricted to ULT WEAR. **ULT WEAR is
-the current macOS hardware-validated model; XM5/XM6 and other entries still need
-macOS community confirmation.** See [`docs/MACOS.md`](docs/MACOS.md) for the
-platform-specific test status.
+The table above records project-wide compatibility. **The WH-1000XM5 is the
+hardware-validated model on Linux**; the other entries were confirmed on the
+Windows implementation and still need Linux community confirmation. The macOS
+backend uses the same descriptor-defined protocol and is hardware-validated on
+ULT WEAR — see [`docs/MACOS.md`](docs/MACOS.md) for that platform's test status.
 
 ### Candidate
 
 Sony lists these models as supporting head tracking, but they still require
-community testing with this Windows implementation. Please do not assume they are
+community testing with this implementation. Please do not assume they are
 already validated.
 
 - Sony LinkBuds Open (WF-L910)
@@ -365,31 +366,112 @@ overridable:
   `--invert` flag is a complete override: `--invert xz` reproduces the default,
   `--invert z` inverts Z only, and `--invert none` clears all inversions.
 - **GUI:** the axis-order dropdown (defaults to YXZ) and the Invert X/Y/Z
-  checkboxes (Invert X and Z start checked).
+  checkboxes (Invert X and Z start checked). On Linux, **Calibrate axes** works
+  this out for you from a few guided head movements.
 
 The same axis convention is applied to the gyroscope and accelerometer vectors so
 all streams share one coordinate frame.
 
-## Build
+## Other platforms
 
-### macOS
+### Windows 11
 
-The macOS CLI and tests require full Xcode with a C++20 compiler and CMake 3.25
-or later. The SwiftUI Xcode project is committed; XcodeGen is required only when
-regenerating it from `macos/project.yml`.
+1. Download `sony-head-tracker.exe` from the
+   [latest release](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest)
+   (or [build it yourself](#windows), it is one `cl` command).
+2. [Pair your compatible Sony headphones or earbuds](#pair-the-headphones)
+   through Windows 11.
+3. Open the application. It automatically discovers compatible head-tracking
+   sensors, displays live orientation data, and streams tracking output while it
+   is open.
+4. **Starting the app for the first time on a fresh boot? Press Repair Tracker
+   first.** Windows very often pairs a Sony headset but does not create the
+   head-tracker sensor node until something nudges it, so on a cold boot the app
+   frequently shows nothing at first. Press the **Repair Tracker** button and
+   approve the single administrator prompt. This is the normal first step, not a
+   sign that anything is broken, and it is exactly what the button is for. After
+   the app reopens, your headset should appear.
+5. For games: in OpenTrack, select **UDP over network** as the input and use
+   port `4242`, then press **Start**. See [OpenTrack](#opentrack).
+6. For your own code: read one JSON object per sample from port `4243`. See
+   [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+7. Press **Recenter** (or Ctrl+Alt+C) while facing forward.
+
+### macOS 14 or later
+
+The macOS port includes a native SwiftUI application and a command-line bridge.
+It discovers devices by the Android Head Tracker HID descriptor instead of by
+model name, VID/PID, report ID, or report length.
+
+Choose **one** of the following ways to run Sony Head Tracker. You do not need
+to build or run more than one. Downloading the prebuilt package requires no
+developer tools; building from source (Options 2 and 3) requires full Xcode
+selected with `xcode-select`, and the command-line option additionally requires
+CMake 3.25 or later.
+
+#### Option 1 — Download the prebuilt package (no Xcode required)
+
+1. Download `sony-head-tracker-vX.Y.Z-macos-universal.zip` from the
+   [latest release](https://github.com/NicholasSlattery/sony-head-tracker/releases/latest).
+   It contains the SwiftUI app and the CLI bridge as universal (Apple Silicon +
+   Intel) binaries for macOS 14 or later.
+2. Unzip it and move `SonyHeadTracker.app` wherever you like.
+3. The app is ad-hoc signed but not notarized, so Gatekeeper flags the first
+   launch: right-click (Control-click) the app and choose **Open**. If macOS
+   does not offer **Open**, go to **System Settings > Privacy & Security**,
+   scroll to the blocked-app notice, and click **Open Anyway**.
+4. Allow Sony Head Tracker under **System Settings > Privacy & Security >
+   Input Monitoring**, then quit and reopen it.
+
+#### Option 2 — Build the native macOS application
+
+The application does not require a separate CMake build. From the repository
+root, run:
 
 ```bash
-cmake -S . -B build/macos -DCMAKE_BUILD_TYPE=Release
-cmake --build build/macos --parallel
-ctest --test-dir build/macos --output-on-failure
-
-# Optional after project.yml changes: (cd macos && xcodegen generate)
 ./script/build_and_run.sh
 ```
 
-The app targets macOS 14 or later. Detailed permissions, CLI usage, build
-variants, device recovery, and ULT WEAR's silent A2DP keepalive are documented in
+The script builds the committed Xcode project and opens `SonyHeadTracker.app`.
+It does not inspect or use signing identities unless you explicitly opt in with
+`SHT_ENABLE_STABLE_SIGNING=1`; see the macOS guide for the Input Monitoring
+continuity workflow.
+
+#### Option 3 — Command-line bridge
+
+Use this option when you want a Terminal-only bridge without the SwiftUI
+application:
+
+```bash
+cmake -S . -B build/macos -DCMAKE_BUILD_TYPE=Release
+cmake --build build/macos --target sony-head-tracker-macos --parallel
+./build/macos/sony-head-tracker-macos bridge
+```
+
+Do not run the application and CLI bridge at the same time; they would compete
+for the same tracker and send duplicate data to the same loopback UDP ports.
+
+XcodeGen is **not** required for a normal build. Regenerate the committed Xcode
+project only after changing `macos/project.yml`:
+
+```bash
+cd macos
+xcodegen generate
+```
+
+On first use, allow Sony Head Tracker under **System Settings > Privacy &
+Security > Input Monitoring**, then quit and reopen the application or CLI.
+See the complete setup, device-support status, ULT WEAR audio activation note,
+and troubleshooting steps in
 [`docs/MACOS.md`](docs/MACOS.md).
+
+> **Hardware status:** changing orientation reports have been received from a
+> physical WH-1000XM5 on Linux and Windows, and a physical ULT WEAR on macOS.
+> Behaviour varies with Sony firmware and the platform Bluetooth stack. This
+> project never spoofs another headset, changes Bluetooth identities, or modifies
+> firmware.
+
+## Build
 
 ### Linux
 
@@ -405,6 +487,10 @@ cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release
 cmake --build build/linux --target sony-head-tracker --parallel
 ctest --test-dir build/linux --output-on-failure
 ```
+
+`sudo make install PREFIX=/usr` installs the CLI, the GUI launcher, the scripts,
+the udev rule, and the desktop entry system-wide; `make install-gui` does a
+user-local install into `~/.local` instead.
 
 The GTK desktop app needs Python 3, PyGObject, GTK 4, and libadwaita 1.4+. Per
 distro runtime packages, the app walkthrough, and the global recenter shortcut are
@@ -430,11 +516,13 @@ cl /std:c++latest /EHsc /permissive- /utf-8 /O2 /W4 /DUNICODE /D_UNICODE /I incl
 The code is split into a hardware-independent core under
 [`include/sony_head_tracker/`](include/sony_head_tracker) +
 [`src/`](src) (quaternion maths, HID descriptor decoding, the orientation
-filter, and protocol serialisation — all Windows-free) and a platform layer (HID
-and Sensor API backends, Bluetooth repair, UDP output, and the GUI). Every backend
+filter, and protocol serialisation — all platform-free) and a platform layer (the
+Linux hidraw backend, the Windows HID and Sensor API backends and Bluetooth
+repair, the macOS IOHID backend, UDP output, and the GUIs). Every backend
 produces a normalized `MotionSample`, so recenter, smoothing, axis mapping, Euler
 conversion, and serialisation are all unit-testable without a headset — see
-[`tests/`](tests) and run them with `build-tests.cmd`. A small resource bundle
+[`tests/`](tests) and run them with `make test` on Linux or `build-tests.cmd` on
+Windows. A small Windows resource bundle
 ([`app.rc`](app.rc): icon, version info, and the Common Controls manifest) is
 embedded at build time; the icon is generated by
 [`tools/make-icon.ps1`](tools/make-icon.ps1) and committed as `app.ico`. All
@@ -444,10 +532,30 @@ warning-clean at `/W4`. Every push is built and unit-tested in CI on
 `windows-latest`, and pushing a `v*` tag publishes the exe as a GitHub Release.
 See [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
+### macOS
+
+The macOS CLI and tests require full Xcode with a C++20 compiler and CMake 3.25
+or later. The SwiftUI Xcode project is committed; XcodeGen is required only when
+regenerating it from `macos/project.yml`.
+
+```bash
+cmake -S . -B build/macos -DCMAKE_BUILD_TYPE=Release
+cmake --build build/macos --parallel
+ctest --test-dir build/macos --output-on-failure
+
+# Optional after project.yml changes: (cd macos && xcodegen generate)
+./script/build_and_run.sh
+```
+
+The app targets macOS 14 or later. Detailed permissions, CLI usage, build
+variants, device recovery, and ULT WEAR's silent A2DP keepalive are documented in
+[`docs/MACOS.md`](docs/MACOS.md).
+
 ## Pair the headphones
 
 The following pairing, command, GUI, and repair sections describe Windows. For
-macOS, use [`docs/MACOS.md`](docs/MACOS.md).
+Linux, use [`docs/LINUX.md`](docs/LINUX.md); for macOS,
+[`docs/MACOS.md`](docs/MACOS.md).
 
 1. Update the headset with Sony's app and enable its spatial-audio or
    head-tracking feature if available, then put the headset in pairing mode.
@@ -560,12 +668,17 @@ Other tips:
   interval were accepted in the log. The tested WH-1000XM5 advertises 40 ms and
   produces about 25 packets per second.
 
+(On Linux the equivalent troubleshooting — nothing found, `access denied`,
+detected but no motion, wrong axes — is in
+[`docs/LINUX.md`](docs/LINUX.md#troubleshooting).)
+
 ## Protocol and security notes
 
 The implementation follows the official Android Head Tracker HID protocol: it
-accepts compatible version strings, reads report IDs and lengths from `HIDP_CAPS`,
-accesses fields through `HidP_*`, and honours each value capability's logical and
-physical ranges and HID unit exponent.
+accepts compatible version strings, reads report IDs and lengths from the
+descriptor, honours each value capability's logical and physical ranges and HID
+unit exponent, and accesses fields through the platform HID APIs (`HidP_*` on
+Windows, the parsed report descriptor on Linux hidraw, IOHID on macOS).
 
 UDP output is loopback-only by default and has **no authentication**. Do not bind
 or forward it to an untrusted network.
