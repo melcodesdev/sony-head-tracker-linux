@@ -18,6 +18,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -32,15 +33,54 @@ from gi.repository import Adw, Gio, GLib, Gtk, Gdk  # noqa: E402
 # fine and then dies with a bare AttributeError deep in the UI. Several current
 # LTS releases still ship 1.1 or 1.2 (Ubuntu 22.04, Debian 12 and derivatives,
 # openSUSE Leap 15.5), so check up front and say something useful instead.
+APP_ID = "io.github.sonyheadtracker"
+
+
+def _fatal_startup(msg: str):
+    """Report a startup blocker so the user actually sees it. The desktop entry is
+    Terminal=false, so writing to stderr alone means someone launching from the
+    application menu gets no window and no message at all."""
+    print(msg, file=sys.stderr)
+    try:
+        if Gtk.init_check():
+            app = Gtk.Application(application_id=APP_ID + ".Error",
+                                  flags=Gio.ApplicationFlags.NON_UNIQUE)
+
+            def show(a):
+                w = Gtk.Window(application=a, title="Sony Head Tracker",
+                               default_width=470, resizable=False)
+                label = Gtk.Label(label=msg, wrap=True, selectable=True, xalign=0)
+                for side in ("top", "bottom", "start", "end"):
+                    getattr(label, "set_margin_" + side)(24)
+                w.set_child(label)
+                w.present()
+
+            app.connect("activate", show)
+            app.run(None)
+            raise SystemExit(1)
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001
+        pass
+    for argv in (["zenity", "--error", "--no-wrap", "--text", msg],
+                 ["kdialog", "--error", msg],
+                 ["notify-send", "Sony Head Tracker", msg]):
+        if shutil.which(argv[0]):
+            subprocess.run(argv, check=False)
+            break
+    raise SystemExit(1)
+
+
 _ADW = (Adw.get_major_version(), Adw.get_minor_version())
 if _ADW < (1, 4):
-    raise SystemExit(
-        f"Sony Head Tracker needs libadwaita 1.4 or newer, but this system has {_ADW[0]}.{_ADW[1]}.\n"
-        "Options: use the AppImage (it bundles its own libadwaita), upgrade to a newer\n"
-        "release of your distribution, or use the command line instead:\n"
-        "    sony-head-tracker bridge")
+    _fatal_startup(
+        f"Sony Head Tracker needs libadwaita 1.4 or newer.\n"
+        f"This system has {_ADW[0]}.{_ADW[1]}.\n\n"
+        "The command line works on any version:\n"
+        "    sony-head-tracker bridge\n\n"
+        "For the desktop app, use the AppImage (it bundles its own libadwaita), or\n"
+        "upgrade to a newer release of your distribution.")
 
-APP_ID = "io.github.sonyheadtracker"
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 CONFIG_PATH = Path(GLib.get_user_config_dir()) / "sony-head-tracker" / "gui.json"
