@@ -10,8 +10,8 @@ pkgbase = sony-head-tracker-git
 	makedepends = git
 	makedepends = gcc
 	makedepends = make
-	depends = gtk4
-	depends = libadwaita
+	depends = gtk4>=4.12
+	depends = libadwaita>=1.4
 	depends = python-gobject
 	depends = python
 	depends = hicolor-icon-theme

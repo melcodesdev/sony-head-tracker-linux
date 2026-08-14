@@ -40,15 +40,15 @@ common=(
 
 echo "==> Building .deb (Debian/Ubuntu/Mint)"
 fpm "${common[@]}" -t deb -a "$ARCH_DEB" \
-    --depends libgtk-4-1 --depends libadwaita-1-0 --depends python3 \
-    --depends python3-gi --depends gir1.2-gtk-4.0 --depends gir1.2-adw-1 \
+    --depends libgtk-4-1 --depends 'libadwaita-1-0 (>= 1.4)' --depends python3 \
+    --depends python3-gi --depends gir1.2-gtk-4.0 --depends 'gir1.2-adw-1 (>= 1.4)' \
     --deb-recommends opentrack \
     --package "sony-head-tracker_${VERSION}_${ARCH_DEB}.deb" \
     usr
 
 echo "==> Building .rpm (Fedora/RHEL/openSUSE)"
 fpm "${common[@]}" -t rpm -a "$ARCH_RPM" \
-    --depends gtk4 --depends libadwaita --depends python3 --depends python3-gobject \
+    --depends gtk4 --depends 'libadwaita >= 1.4' --depends python3 --depends python3-gobject \
     --package "sony-head-tracker-${VERSION}-1.${ARCH_RPM}.rpm" \
     usr
 

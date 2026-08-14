@@ -20,7 +20,7 @@ Source0:        %{url}/archive/refs/heads/main.tar.gz#/%{name}-%{version}.tar.gz
 BuildRequires:  gcc-c++
 BuildRequires:  make
 Requires:       gtk4
-Requires:       libadwaita
+Requires:       libadwaita >= 1.4
 Requires:       python3
 Requires:       python3-gobject
 Recommends:     opentrack

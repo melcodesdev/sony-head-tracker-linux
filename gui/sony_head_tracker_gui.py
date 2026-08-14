@@ -25,9 +25,37 @@ from pathlib import Path
 
 import gi
 
-gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, GLib, Gtk, Gdk  # noqa: E402
+
+def _report_without_gtk(msg: str):
+    """Last-resort error path for when GTK itself is unusable, so this cannot use
+    any GTK call. The desktop entry is Terminal=false, so stderr alone is unseen."""
+    print(msg, file=sys.stderr)
+    for argv in (["zenity", "--error", "--no-wrap", "--text", msg],
+                 ["kdialog", "--error", msg],
+                 ["notify-send", "Sony Head Tracker", msg]):
+        if shutil.which(argv[0]):
+            subprocess.run(argv, check=False)
+            break
+    raise SystemExit(1)
+
+
+# The GTK and libadwaita typelibs are packaged separately from the libraries on
+# Debian and Ubuntu (gir1.2-gtk-4.0, gir1.2-adw-1), so a missing one is common and
+# would otherwise be an unreadable traceback that no menu launcher ever displays.
+try:
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+    from gi.repository import Adw, Gio, GLib, Gtk, Gdk  # noqa: E402
+except (ImportError, ValueError) as exc:
+    _report_without_gtk(
+        "Sony Head Tracker could not load GTK 4 and libadwaita.\n"
+        f"({exc})\n\n"
+        "Install the GObject introspection data for them:\n"
+        "  Debian and Ubuntu: sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1\n"
+        "  Fedora:            sudo dnf install python3-gobject gtk4 libadwaita\n"
+        "  Arch:              sudo pacman -S python-gobject gtk4 libadwaita\n\n"
+        "The command line bridge does not need any of this:\n"
+        "    sony-head-tracker bridge")
 
 # "Adw 1" pins the API series, not the release, so an older libadwaita imports
 # fine and then dies with a bare AttributeError deep in the UI. Several current
@@ -73,13 +101,17 @@ def _fatal_startup(msg: str):
 
 _ADW = (Adw.get_major_version(), Adw.get_minor_version())
 if _ADW < (1, 4):
+    # Deliberately does NOT suggest the AppImage. It cannot bundle glibc, and every
+    # release shipping libadwaita < 1.4 also ships a glibc older than the one these
+    # binaries are built against, so that advice would send the user in a circle.
     _fatal_startup(
-        f"Sony Head Tracker needs libadwaita 1.4 or newer.\n"
-        f"This system has {_ADW[0]}.{_ADW[1]}.\n\n"
-        "The command line works on any version:\n"
+        f"The Sony Head Tracker desktop app needs libadwaita 1.4 or newer.\n"
+        f"This system has {_ADW[0]}.{_ADW[1]}.{Adw.get_micro_version()}.\n\n"
+        "The command line bridge does not need libadwaita and works here:\n"
         "    sony-head-tracker bridge\n\n"
-        "For the desktop app, use the AppImage (it bundles its own libadwaita), or\n"
-        "upgrade to a newer release of your distribution.")
+        "For the desktop app, use a release that ships libadwaita 1.4 or newer:\n"
+        "Ubuntu 24.04+, Debian 13+, Fedora 39+, openSUSE Tumbleweed, or a rolling\n"
+        "distribution such as Arch, CachyOS or EndeavourOS.")
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent

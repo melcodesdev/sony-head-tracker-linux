@@ -6,7 +6,7 @@ KDE/GNOME global recenter shortcut, launching OpenTrack) keeps working.
 
 ## Status
 
-Starting point, needs a test run. A **GTK4 + PyGObject** app is the hard case for
+Builds and launches (validated on CachyOS/Arch). A **GTK4 + PyGObject** app is the hard case for
 AppImage: `linuxdeploy-plugin-gtk` bundles GTK4, libadwaita, the gdk-pixbuf
 loaders, the GObject-introspection typelibs, and GSettings schemas, but **not the
 Python interpreter**, which `build-appimage.sh` bundles separately. Python + `gi`

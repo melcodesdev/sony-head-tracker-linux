@@ -12,7 +12,7 @@ pkgdesc="Use Sony headphones as a head tracker for OpenTrack (Linux CLI + GTK ap
 arch=('x86_64' 'aarch64')
 url="https://github.com/melcodesdev/sony-head-tracker-linux"
 license=('MIT')
-depends=('gtk4' 'libadwaita' 'python-gobject' 'python' 'hicolor-icon-theme')
+depends=('gtk4>=4.12' 'libadwaita>=1.4' 'python-gobject' 'python' 'hicolor-icon-theme')
 makedepends=('git' 'gcc' 'make')
 optdepends=('opentrack: drive the in-game camera from the head-tracking data'
             'bluez-utils: pair the headset from the terminal with bluetoothctl'
