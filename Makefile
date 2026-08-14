@@ -8,7 +8,17 @@
 #   make test       build + run the Linux test suite
 #   make gui        run the GTK GUI against the built CLI
 #   make install-gui   add the GUI to your application menu
+#   make portable   build for redistribution (see PORTABLE below)
 #   make clean
+#
+# PORTABLE=1 links libstdc++ and libgcc statically. Distribution packages should
+# NOT use it (they want the shared libraries), but a binary shipped to arbitrary
+# systems does: std::format pulls in GLIBCXX_3.4.35 and 3.4.36 symbols, and a
+# system whose libstdc++ is older then refuses to load the binary at all. The
+# most important case is SteamOS 3.8 on the Steam Deck, which caps at
+# GLIBCXX_3.4.34 (its glibc 2.41 is new enough, so only the C++ runtime is the
+# problem). Three std::format symbols are the entire reason, so this one flag is
+# far cheaper than rewriting every std::format call site.
 
 # c++ rather than g++: resolves to g++ on glibc distros and to clang++ where no
 # GCC is shipped (Chimera Linux). Needs g++ 13+ or clang 16+ for std::format.
@@ -23,6 +33,10 @@ override LDFLAGS  += -pthread
 ATOMIC_LIB := $(shell printf '#include <atomic>\n#include <cstdint>\nstd::atomic<std::uint64_t> a;int main(){return (int)a.fetch_add(1);}\n' \
 	| $(CXX) -std=c++20 -x c++ - -o /dev/null 2>/dev/null && echo "" || echo "-latomic")
 override LDFLAGS  += $(ATOMIC_LIB)
+# Redistributable build: drop the libstdc++/libgcc version ceiling (see header).
+ifeq ($(PORTABLE),1)
+override LDFLAGS  += -static-libstdc++ -static-libgcc
+endif
 BUILD    := build
 BIN      := $(BUILD)/sony-head-tracker
 GUI_SCRIPT := $(CURDIR)/gui/sony_head_tracker_gui.py
@@ -58,6 +72,11 @@ TEST_SRC := src/hid_descriptor.cpp src/linux/hid_report_parser.cpp \
 TEST_BIN := $(BUILD)/linux-tests
 
 all: $(BIN)
+
+# Redistributable CLI (AppImage, release tarball, Steam Deck).
+portable:
+	$(MAKE) clean
+	$(MAKE) PORTABLE=1
 
 $(BIN): $(APP_SRC) | $(BUILD)
 	$(CXX) $(CXXFLAGS) $(APP_SRC) -o $@ $(LDFLAGS)
@@ -127,4 +146,4 @@ $(BUILD):
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all test gui install-gui install uninstall clean
+.PHONY: all portable test gui install-gui install uninstall clean
