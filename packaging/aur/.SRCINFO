@@ -5,6 +5,7 @@ pkgbase = sony-head-tracker-git
 	url = https://github.com/melcodesdev/sony-head-tracker-linux
 	install = sony-head-tracker-git.install
 	arch = x86_64
+	arch = aarch64
 	license = MIT
 	makedepends = git
 	makedepends = gcc

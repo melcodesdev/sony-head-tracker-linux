@@ -47,9 +47,11 @@ echo "==> Bundling the Python interpreter, standard library, and PyGObject (gi)"
 PYBIN="$(command -v python3)"
 PYVER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 PYSTD="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
+# lib vs lib64: Fedora, RHEL and SUSE configure CPython with --with-platlibdir=lib64.
+PLATLIB="$(python3 -c 'import sys; print(getattr(sys, "platlibdir", "lib"))')"
 GI_DIR="$(python3 -c 'import gi, os; print(os.path.dirname(gi.__file__))')"
 CAIRO_DIR="$(python3 -c 'import cairo, os; print(os.path.dirname(cairo.__file__))' 2>/dev/null || true)"
-PYDST="$APPDIR/usr/lib/python$PYVER"
+PYDST="$APPDIR/usr/$PLATLIB/python$PYVER"
 install -Dm755 "$PYBIN" "$APPDIR/usr/bin/python3"
 mkdir -p "$PYDST"
 # Full stdlib (encodings, lib-dynload, ssl, ...), but WITHOUT the host's
@@ -95,7 +97,7 @@ export PATH="\$HERE/usr/bin:\$PATH"
 export LD_LIBRARY_PATH="\$HERE/usr/lib:\$LD_LIBRARY_PATH"
 export XDG_DATA_DIRS="\$HERE/usr/share:\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export PYTHONHOME="\$HERE/usr"
-export PYTHONPATH="\$HERE/usr/lib/python$PYVER:\$HERE/usr/lib/python$PYVER/site-packages"
+export PYTHONPATH="\$HERE/usr/$PLATLIB/python$PYVER:\$HERE/usr/$PLATLIB/python$PYVER/site-packages"
 export PYTHONDONTWRITEBYTECODE=1
 exec "\$HERE/usr/bin/python3" "\$HERE/usr/share/sony-head-tracker/sony_head_tracker_gui.py" "\$@"
 EOF

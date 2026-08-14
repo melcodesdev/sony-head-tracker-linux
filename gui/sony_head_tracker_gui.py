@@ -28,6 +28,18 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk, Gdk  # noqa: E402
 
+# "Adw 1" pins the API series, not the release, so an older libadwaita imports
+# fine and then dies with a bare AttributeError deep in the UI. Several current
+# LTS releases still ship 1.1 or 1.2 (Ubuntu 22.04, Debian 12 and derivatives,
+# openSUSE Leap 15.5), so check up front and say something useful instead.
+_ADW = (Adw.get_major_version(), Adw.get_minor_version())
+if _ADW < (1, 4):
+    raise SystemExit(
+        f"Sony Head Tracker needs libadwaita 1.4 or newer, but this system has {_ADW[0]}.{_ADW[1]}.\n"
+        "Options: use the AppImage (it bundles its own libadwaita), upgrade to a newer\n"
+        "release of your distribution, or use the command line instead:\n"
+        "    sony-head-tracker bridge")
+
 APP_ID = "io.github.sonyheadtracker"
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent

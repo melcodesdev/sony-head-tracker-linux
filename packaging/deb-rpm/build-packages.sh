@@ -14,8 +14,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 VERSION="${VERSION:-2.2.0}"
-ARCH_DEB="${ARCH_DEB:-amd64}"
-ARCH_RPM="${ARCH_RPM:-x86_64}"
+ARCH_DEB="${ARCH_DEB:-$(dpkg --print-architecture 2>/dev/null || uname -m)}"
+ARCH_RPM="${ARCH_RPM:-$(uname -m)}"
 
 command -v fpm >/dev/null 2>&1 || { echo "error: fpm not found. Install it: gem install --user-install fpm" >&2; exit 1; }
 
