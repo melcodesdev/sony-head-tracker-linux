@@ -169,6 +169,149 @@ def add_escape_to_close(window):
     window.add_controller(ctrl)
 
 
+RULE_NAME = "70-sony-head-tracker.rules"
+RULE_DEST = "/etc/udev/rules.d/" + RULE_NAME
+_EOF = "SONY_HEAD_TRACKER_EOF"
+
+
+def read_rule_text() -> str:
+    """The udev rule's contents, read as the user. Never let root read this path:
+    inside an AppImage it lives on a squashfuse mount root cannot see."""
+    try:
+        return (EXTRAS_DIR / RULE_NAME).read_text()
+    except Exception:  # noqa: BLE001
+        # Minimal equivalent, so the app still works if extras/ is missing.
+        return (
+            "# Sony head tracker: let the logged-in user read /dev/hidraw*.\n"
+            'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:*", TAG+="uaccess"\n'
+            'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0003:054C:*", TAG+="uaccess"\n'
+            'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:*", GROUP="input", MODE="0660"\n'
+            'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0003:054C:*", GROUP="input", MODE="0660"\n'
+        )
+
+
+def grant_script(rule_text: str) -> str:
+    """The privileged shell program. The rule travels in a quoted heredoc, so no
+    path is interpolated into a root shell (that also fixes paths containing a
+    quote) and root never has to read a file the user owns. udevadm failures use
+    '||' markers so a reload problem is not reported as 'the rule failed'."""
+    return (
+        "set -e\numask 022\nmkdir -p /etc/udev/rules.d\n"
+        f"cat > {RULE_DEST} <<'{_EOF}'\n{rule_text.rstrip()}\n{_EOF}\n"
+        f"chmod 0644 {RULE_DEST}\n"
+        "echo SHT-RULE-INSTALLED\n"
+        "udevadm control --reload-rules || echo SHT-RELOAD-FAILED\n"
+        "udevadm trigger --subsystem-match=hidraw --action=add || echo SHT-TRIGGER-FAILED\n"
+    )
+
+
+def manual_grant_command(rule_text: str) -> str:
+    """A copy-paste equivalent that always works, in any layout (source checkout,
+    system install, AppImage) because it embeds the rule instead of a path."""
+    return (
+        f"sudo tee {RULE_DEST} > /dev/null <<'{_EOF}'\n{rule_text.rstrip()}\n{_EOF}\n"
+        "sudo udevadm control --reload-rules\n"
+        "sudo udevadm trigger --subsystem-match=hidraw --action=add"
+    )
+
+
+def classify_pkexec_failure(rc: int, err: str) -> tuple[str, str]:
+    """Map a pkexec failure to (banner title, detailed explanation)."""
+    e = err or ""
+    if rc == -2:
+        return ("This app could not ask for your password.",
+                "pkexec is missing. Install it: 'sudo apt install policykit-1' on Debian and Ubuntu, "
+                "'sudo dnf install polkit' on Fedora, 'sudo pacman -S polkit' on Arch. "
+                "Or just run the command below in a terminal.")
+    if rc == -1:
+        return ("The password request timed out.",
+                "No answer came back. If you started this app from a terminal, the prompt may be "
+                "waiting in that terminal window. Otherwise use the command below.")
+    if rc == 126 or "dismissed" in e.lower():
+        return ("The password request was cancelled.",
+                "Nothing was changed. Press Grant device access to try again, or use the command below.")
+    if "No authentication agent found" in e:
+        return ("This desktop session has no password agent running.",
+                "polkit needs an authentication agent (polkit-gnome, polkit-kde-agent-1, lxpolkit). "
+                "Minimal window managers often do not start one. The command below avoids polkit entirely.")
+    if "Not authorized" in e:
+        return ("polkit refused the request for this account.",
+                "Your user may not be an administrator. On Debian and Ubuntu that is the 'sudo' group, "
+                "on Fedora and Arch it is 'wheel'. The command below uses sudo instead.")
+    if "must be setuid root" in e:
+        return ("pkexec is installed but not set up correctly on this system.",
+                "Its setuid bit is missing, which is a distro packaging problem. Use the command below.")
+    first = (e.strip().splitlines() or [""])[0][:300]
+    return (f"Could not grant access (exit code {rc}).",
+            (first or "No error output was produced.") + "\n\nThe command below does the same thing manually.")
+
+
+def parse_tracker(probe_out: str) -> dict | None:
+    """Pull the verified tracker's node and ids out of `probe` output."""
+    node, vid, pid, best = None, None, None, None
+    for line in (probe_out or "").splitlines():
+        m = re.match(r"^HID (/dev/hidraw\d+)", line.strip())
+        if m:
+            node, vid, pid = m.group(1), None, None
+        m = re.search(r"VID/PID ([0-9A-Fa-f]{4}):([0-9A-Fa-f]{4})", line)
+        if m and node:
+            vid, pid = m.group(1), m.group(2)
+        if "verified Android tracker: yes" in line and node:
+            best = {"path": node, "vid": vid or "", "pid": pid or ""}
+    return best
+
+
+def hidraw_parent_name(dev_path: str) -> str | None:
+    """The parent HID kernel name (BBBB:VVVV:PPPP.NNNN) a udev rule matches on."""
+    try:
+        node = os.path.basename(dev_path)
+        return os.path.basename(os.path.realpath(f"/sys/class/hidraw/{node}/device"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rule_patterns(rule_text: str) -> set[str]:
+    return set(re.findall(r'KERNELS=="([^"]+)"', rule_text or ""))
+
+
+def rule_covers(parent: str, patterns: set[str]) -> bool:
+    import fnmatch
+    return any(fnmatch.fnmatchcase(parent.upper(), p.upper()) for p in patterns)
+
+
+def extra_rule_stanza(parent: str) -> str | None:
+    """Build rule lines matching THIS headset, for a device the bundled rule misses."""
+    m = re.match(r"^([0-9A-Fa-f]{4}):([0-9A-Fa-f]{4}):", parent or "")
+    if not m:
+        return None
+    bus, vid = m.group(1), m.group(2)
+    return (f"\n# Added for a headset that the default rules did not match ({parent}).\n"
+            f'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="{bus}:{vid}:*", TAG+="uaccess"\n'
+            f'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="{bus}:{vid}:*", GROUP="input", MODE="0660"\n')
+
+
+def in_input_group() -> bool:
+    try:
+        import grp
+        return grp.getgrnam("input").gr_gid in os.getgroups()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def session_is_active() -> bool | None:
+    """Whether logind considers this session active (uaccess grants nothing if not)."""
+    sid = os.environ.get("XDG_SESSION_ID")
+    if not sid or not shutil.which("loginctl"):
+        return None
+    try:
+        r = subprocess.run(["loginctl", "show-session", sid, "-p", "Active", "--value"],
+                           capture_output=True, text=True, timeout=5)
+        out = (r.stdout or "").strip().lower()
+        return True if out == "yes" else (False if out == "no" else None)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def shortest_angle_lerp(current: float, target: float, t: float) -> float:
     """Interpolate degrees along the shortest path (handles the +/-180 wrap)."""
     delta = (target - current + 180.0) % 360.0 - 180.0
@@ -364,6 +507,11 @@ class TrackerWindow(Adw.ApplicationWindow):
         self._apply_id = 0  # debounce timer for live settings changes
         self._last_hid_nudge = 0.0  # rate-limit the auto Bluetooth HID connect
         self._hid_nudging = False
+        self._granting = False      # re-entrancy guard for the password prompt
+        self._slow_id = 0
+        self._banner_sticky = False  # keep a grant failure on screen past the rescan
+        self._tracker = None         # {path, vid, pid} of the verified tracker
+        self._grant_help = None
 
         self._build_ui()
         # Never leave an orphaned bridge process or a bound UDP port behind.
@@ -520,9 +668,15 @@ class TrackerWindow(Adw.ApplicationWindow):
         m = re.search(r"head tracker on '([^']+)'", out)
         name = m.group(1) if m else None
         verified = "Verified Android head tracker on" in out
+        # Remember which node the tracker is on, so a failed grant can be diagnosed
+        # (does the rule even match this device? is the ACL there?).
+        found = parse_tracker(out)
+        if found:
+            self._tracker = found
 
         if verified and name:  # detected and accessible
             self._ready = True
+            self._banner_sticky = False
             self.banner.set_revealed(False)
             self._set_status("ok", f"Ready: {name}")
             self.start_btn.set_sensitive(True)
@@ -534,6 +688,9 @@ class TrackerWindow(Adw.ApplicationWindow):
 
         self._ready = False
         self.start_btn.set_sensitive(False)
+        if self._banner_sticky:
+            # A grant failure is showing and explains more than these generic lines.
+            return False
         if name:  # detected but no device access yet (one-time grant)
             self._set_status("warn", f"Found {name}, access needed")
             self.banner.set_title(f"{name} found. Grant one-time access to start tracking.")
@@ -562,10 +719,74 @@ class TrackerWindow(Adw.ApplicationWindow):
         action = getattr(self, "_banner_action", "recheck")
         if action == "grant":
             self.grant_access()
+        elif action == "grant_help":
+            self._open_grant_help()
         elif action == "reconnect_hid":
             self._nudge_hid(manual=True)
         else:
+            self._banner_sticky = False
             self._refresh_device()
+
+    def _open_grant_help(self):
+        """Explain exactly why the grant failed and give a command that always works."""
+        title, detail, rule_text = getattr(self, "_grant_help", None) or (
+            "Grant device access", "", read_rule_text())
+        win = Adw.Window(transient_for=self, modal=True, title="Grant device access",
+                         default_width=620, default_height=560)
+        add_escape_to_close(win)
+        tv = Adw.ToolbarView()
+        tv.add_top_bar(Adw.HeaderBar())
+        page = Adw.PreferencesPage()
+
+        g = Adw.PreferencesGroup(title=title, description=detail)
+
+        parent = getattr(self, "_unmatched_parent", None)
+        if parent and extra_rule_stanza(parent):
+            row = Adw.ActionRow(title="Add a rule for this headset",
+                                subtitle=f"Covers {parent}, which the default rules miss")
+            btn = Gtk.Button(label="Add rule", valign=Gtk.Align.CENTER)
+            btn.add_css_class("suggested-action")
+
+            def add_rule(_b):
+                self._unmatched_parent = None
+                win.close()
+                self.grant_access(rule_text + (extra_rule_stanza(parent) or ""))
+
+            btn.connect("clicked", add_rule)
+            row.add_suffix(btn)
+            g.add(row)
+
+        retry = Adw.ActionRow(title="Try again", subtitle="Ask for the password once more")
+        rbtn = Gtk.Button(label="Retry", valign=Gtk.Align.CENTER)
+        rbtn.connect("clicked", lambda _b: (win.close(), self.grant_access()))
+        retry.add_suffix(rbtn)
+        g.add(retry)
+        page.add(g)
+
+        cmd = manual_grant_command(rule_text)
+        man = Adw.PreferencesGroup(
+            title="Or run this in a terminal",
+            description="This does exactly the same thing and works on every distribution. "
+                        "Paste it, enter your password, then reconnect the headset.")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        tvw = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.NONE)
+        tvw.get_buffer().set_text(cmd)
+        sc = Gtk.ScrolledWindow(min_content_height=190, vexpand=False)
+        sc.add_css_class("card")
+        sc.set_child(tvw)
+        box.append(sc)
+        copy = Gtk.Button(label="Copy command", halign=Gtk.Align.END)
+        copy.add_css_class("suggested-action")
+        copy.connect("clicked", lambda _b: (
+            Gdk.Display.get_default().get_clipboard().set(cmd),
+            self._toast("Command copied. Paste it into a terminal.")))
+        box.append(copy)
+        man.add(box)
+        page.add(man)
+
+        tv.set_content(page)
+        win.set_content(tv)
+        win.present()
 
     # ---- Bluetooth HID connect ---------------------------------------------
     def _nudge_hid(self, manual: bool = False):
@@ -796,52 +1017,116 @@ class TrackerWindow(Adw.ApplicationWindow):
             self.target["device"] = dev
 
     # ---- Helpers -----------------------------------------------------------
-    def grant_access(self):
-        rule = EXTRAS_DIR / "70-sony-head-tracker.rules"
-        if not rule.is_file():
-            self._toast("udev rule not found in extras/")
+    def grant_access(self, rule_text: str | None = None):
+        # One-time: install the udev rule so /dev/hidraw* is readable without root.
+        if getattr(self, "_granting", False):
             return
-        cmd = ("cp '%s' /etc/udev/rules.d/ && udevadm control --reload-rules && "
-               "udevadm trigger --subsystem-match=hidraw --action=add" % rule)
+        text = rule_text or read_rule_text()
+        if not shutil.which("pkexec"):
+            title, detail = classify_pkexec_failure(-2, "")
+            self._grant_failed(title, detail, text)
+            return
+        self._granting = True
+        self._set_status("busy", "Waiting for your password...")
+        self.banner.set_revealed(False)
+        self._slow_id = GLib.timeout_add_seconds(5, self._grant_slow_hint)
 
         def worker():
             try:
-                r = subprocess.run(["pkexec", "sh", "-c", cmd], capture_output=True, text=True)
-                ok = r.returncode == 0
-            except Exception:  # noqa: BLE001
-                ok = False
-            GLib.idle_add(self._grant_done, ok)
+                r = subprocess.run(["pkexec", "sh", "-c", grant_script(text)],
+                                   capture_output=True, text=True,
+                                   stdin=subprocess.DEVNULL, timeout=300)
+                rc, out, err = r.returncode, r.stdout or "", r.stderr or ""
+            except subprocess.TimeoutExpired:
+                rc, out, err = -1, "", "timed out"
+            except Exception as exc:  # noqa: BLE001
+                rc, out, err = -2, "", str(exc)
+            GLib.idle_add(self._grant_done, rc, out, err, text)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _grant_done(self, ok: bool):
-        if ok:
-            # The udev ACL applies asynchronously; give it a moment, then re-probe.
-            # This is a one-time step: once the rule is installed, no more prompts.
-            self._set_status("busy", "Access granted, checking...")
-            self.banner.set_revealed(False)
-            GLib.timeout_add(1800, self._post_grant_recheck)
-            self._grant_retries = 4
-        else:
-            self.banner.set_title("Could not grant access. You can still run the CLI with sudo.")
-            self.banner.set_button_label("Re-check")
-            self._banner_action = "recheck"
-            self.banner.set_revealed(True)
+    def _grant_slow_hint(self):
+        self._slow_id = 0
+        if getattr(self, "_granting", False):
+            self._set_status("busy", "Still waiting. The password prompt may be behind this window.")
         return False
 
+    def _grant_done(self, rc: int, out: str, err: str, rule_text: str):
+        self._granting = False
+        if self._slow_id:
+            GLib.source_remove(self._slow_id)
+            self._slow_id = 0
+        if "SHT-RULE-INSTALLED" not in (out or ""):
+            title, detail = classify_pkexec_failure(rc, err)
+            self._grant_failed(title, detail, rule_text)
+            return False
+        # The rule is on disk. The ACL applies asynchronously, so re-probe a few times.
+        self._udev_warned = "SHT-RELOAD-FAILED" in out or "SHT-TRIGGER-FAILED" in out
+        self._granted_rule = rule_text
+        self._set_status("busy", "Access granted, checking...")
+        self.banner.set_revealed(False)
+        self._grant_retries = 4
+        GLib.timeout_add(1800, self._post_grant_recheck)
+        return False
+
+    def _grant_failed(self, title: str, detail: str, rule_text: str):
+        self._granting = False
+        self._banner_sticky = True   # do not let the idle rescan overwrite this
+        self._set_status("warn", "Access not granted yet")
+        self.banner.set_title(title)
+        self.banner.set_button_label("Show me how")
+        self._banner_action = "grant_help"
+        self._grant_help = (title, detail, rule_text)
+        self.banner.set_revealed(True)
+
     def _post_grant_recheck(self):
-        # Re-probe a few times; if the headset was already connected before the rule
-        # existed, it may need a reconnect for the ACL to land.
+        # os.access honours the udev ACL directly, so it is the authoritative signal.
+        tracker = getattr(self, "_tracker", None)
+        if tracker and os.access(tracker["path"], os.R_OK | os.W_OK):
+            self._banner_sticky = False
+            self._refresh_device()
+            return False
         self._refresh_device()
         self._grant_retries = getattr(self, "_grant_retries", 0) - 1
         if not self._ready and self._grant_retries > 0:
             GLib.timeout_add(1500, self._post_grant_recheck)
         elif not self._ready:
-            self.banner.set_title("Almost there: unplug/reconnect the headset once to finish granting access.")
-            self.banner.set_button_label("Re-check")
-            self._banner_action = "recheck"
-            self.banner.set_revealed(True)
+            title, detail = self._access_diagnosis()
+            self._grant_failed(title, detail, getattr(self, "_granted_rule", read_rule_text()))
         return False
+
+    def _access_diagnosis(self) -> tuple[str, str]:
+        """The rule installed but access still is not there. Work out why, in the
+        order that actually distinguishes the cases."""
+        rule_text = getattr(self, "_granted_rule", read_rule_text())
+        tracker = getattr(self, "_tracker", None)
+        if not tracker:
+            return ("The head tracker is not connected right now.",
+                    "The rule is installed. Connect the headset to this computer (not just your phone), "
+                    "then press Re-check. Some models only expose the tracker once head tracking or "
+                    "spatial audio is enabled in Sony's Sound Connect app.")
+        parent = hidraw_parent_name(tracker["path"])
+        if parent and not rule_covers(parent, rule_patterns(rule_text)):
+            self._unmatched_parent = parent
+            return ("The access rule does not match your headset.",
+                    f"The bundled rule covers Sony devices whose HID id starts with 054C, but your "
+                    f"headset appears as {parent}, so the rule never applies to it. "
+                    "Use 'Add a rule for this headset' below to fix that.")
+        if not in_input_group():
+            return ("The rule is installed, but the permission did not apply.",
+                    "uaccess did not grant this session access. Add yourself to the input group as a "
+                    "fallback:\n\n    sudo usermod -aG input $USER\n\nthen log out and log back in.")
+        if session_is_active() is False:
+            return ("This session is not active on the seat.",
+                    "systemd-logind only grants uaccess to the active session, so the rule cannot apply "
+                    "here. Log in directly on the machine, or use the input group fallback.")
+        if getattr(self, "_udev_warned", False):
+            return ("The rule was installed but udev did not reload it.",
+                    "Reconnect the headset, or reboot, to apply it.")
+        return ("Almost there: reconnect the headset once.",
+                "The rule is installed but the device kept its old permissions. Disconnect and reconnect "
+                "the headset (for earbuds, put them back in the case and take them out again), then "
+                "press Re-check.")
 
     def _launch_opentrack(self, _btn):
         ot = shutil.which("opentrack")
